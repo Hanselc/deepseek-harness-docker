@@ -34,3 +34,5 @@ config/*
 !plugins/dsh-workspace-policy/**
 !plugins/dsh-directory-picker-policy/
 !plugins/dsh-directory-picker-policy/**
+!providers/
+!providers/**

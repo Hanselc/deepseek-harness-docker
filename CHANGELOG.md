@@ -13,6 +13,8 @@ All notable changes to this project are documented here.
 - Add the trusted multi-user single-container mode: one DSH process per Authelia user, same public URL, Traefik proxy secret, per-user cookie rewrite, launch-token brokering, and per-user DSH homes/workspaces.
 - Add `@codeorbita/dsh-workspace-policy` and `@codeorbita/dsh-directory-picker-policy` to keep the default workspace editable, allow sub-workspaces, lock default rename/delete/reorder, and restrict the directory picker.
 - Add `compose.multiuser.yaml`, `.env.multiuser.example`, `config/multiuser.example.json`, Traefik/Authelia examples, `docs/multiuser.md`, the English README section, and a two-user multiuser smoke test.
+- Add generic build-time provider presets via `PROVIDERS_CONFIG`, with OpenAI-compatible, Anthropic and Gemini model discovery, static fallback models, optional default model, and no baked secrets.
+- Add `providers/empty.json`, `providers/example.json`, `scripts/provider-preset.cjs`, `docs/provider-presets.md`, image/runtime injection, and provider preset checks in the smoke/multiuser tests.
 - README Light screenshots remain the 0.2.2-rc.5 captures until the new market image is published and the isolated capture workflow is rerun.
 
 ## 0.1.33 - 2026-11-19

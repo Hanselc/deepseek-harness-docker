@@ -16,6 +16,7 @@ const readline = require('node:readline')
 const { spawn } = require('node:child_process')
 const { pathToFileURL } = require('node:url')
 const { MultiUserGateway, gatewayConfigFromEnv, publicConfig, selectAddress } = require('./dsh-multiuser-gateway.cjs')
+const { generateProviderPatch } = require('./provider-preset.cjs')
 
 const DSH_BIN = '/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js'
 const WORKSPACE_MODULE = '/usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-workspace/lib/index.js'
@@ -255,7 +256,7 @@ function childEnv(user, env, publicInfo) {
   return result
 }
 
-function childArgs(user, env, publicInfo) {
+function childArgs(user, env, publicInfo, providerPatch) {
   const webPatch = env.DSH_MULTIUSER_WEB_PATCH || '/opt/deepseek-harness/web.cordis.patch.yml'
   const multiPatch = env.DSH_MULTIUSER_PATCH || '/opt/deepseek-harness/web.multiuser.cordis.patch.yml'
   return [
@@ -265,6 +266,7 @@ function childArgs(user, env, publicInfo) {
     'web',
     '--patch', webPatch,
     '--patch', multiPatch,
+    ...(providerPatch === undefined ? [] : ['--patch', providerPatch]),
     '--no-open',
     '--port', String(user.internalPort),
     '--public-url', publicInfo.url,
@@ -278,6 +280,7 @@ class Supervisor {
     this.stopping = false
     this.children = new Set()
     this.gateway = undefined
+    this.providerPatch = undefined
   }
 
   async start() {
@@ -289,6 +292,21 @@ class Supervisor {
     this.users = config.users
     this.usersRoot = config.usersRoot
     this.publicInfo = publicInfo
+
+    const providerConfig = this.env.DSH_PROVIDERS_CONFIG || '/opt/deepseek-harness/providers.json'
+    if (fs.existsSync(providerConfig)) {
+      try {
+        const result = await generateProviderPatch({
+          configPath: providerConfig,
+          outputPath: '/tmp/dsh-providers.cordis.patch.yml',
+          env: this.env,
+          logger,
+        })
+        this.providerPatch = result.outputPath
+      } catch (error) {
+        logger(`provider preset failed: ${error.message}`)
+      }
+    }
 
     this.gateway = new MultiUserGateway({
       ...gatewayConfig,
@@ -320,7 +338,7 @@ class Supervisor {
     user.ready = false
     user.token = undefined
     user.error = undefined
-    const args = childArgs(user, this.env, this.publicInfo)
+    const args = childArgs(user, this.env, this.publicInfo, this.providerPatch)
     const child = spawn(process.execPath, args, {
       cwd: user.workspaces,
       env: childEnv(user, this.env, this.publicInfo),

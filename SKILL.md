@@ -131,6 +131,12 @@ The default workspace stays writable; `@codeorbita/dsh-workspace-policy` allows 
 
 This is a trusted-user policy mode, not a multi-tenant security boundary: all processes share UID 1000 and can read each other's files if paths are known. Do not use POSIX ACLs as a substitute for distinct UIDs. Read `docs/multiuser.md`, keep the container on the Traefik network without host ports, and run `make multiuser-check` / `make multiuser-smoke` before deployment.
 
+## Provider presets
+
+For a request to ship one or more model providers preconfigured, add a generic provider preset at build time with `PROVIDERS_CONFIG=providers/<file>.json`. The default is `providers/empty.json`; `providers/example.json` shows an OpenAI-compatible Ollama Cloud route plus a generic gateway. The preset declares `api`, `baseURL`, `apiKeyEnv`, optional static `models`, optional `discover: true`, and an optional `defaultModel`. A generated Cordis patch is passed to the Web process; no per-provider code and no client plugin are required.
+
+Do not put API keys in the preset. Use `apiKeyEnv` plus a runtime environment key (Compose can read `providers.env`), or the Models page. Startup discovery only sees environment keys, not UI-saved credentials. Run `make provider-check`; the image validates its baked preset and the multiuser supervisor applies it to every child. See `docs/provider-presets.md`.
+
 ## Build or upgrade safely
 
 - DSH `0.2.3-alpha.2` requires Node.js 24.22.3 or newer (or 26.13.1+); the image pins `node:24.22.3-trixie`. Back up `dsh-home` before upgrading an existing instance.

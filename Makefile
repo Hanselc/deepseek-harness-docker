@@ -9,6 +9,7 @@ MARKET_IMAGE_VERSION ?= $(IMAGE_VERSION)-market.1
 SUPERAGENT_IMAGE_VERSION ?= 0.2.2-rc.5-r1-superagent.1
 SUPERAGENT_BASE_IMAGE_VERSION ?= 0.2.2-rc.5-r1-market.1
 SUPERAGENT_REVISION ?= 6337fc823ce20251c8de8085948165c81aaa701e
+PROVIDERS_CONFIG ?= providers/empty.json
 MULTIUSER_ENV_FILE ?= .env.multiuser
 MULTIUSER_CONFIG ?= config/multiuser.json
 BROWSER_PLUGIN_VERSION ?= 0.1.7
@@ -24,12 +25,13 @@ PODMAN_COMPOSE ?= podman-compose
 LAN_ENV_FILE ?= .env.lan
 PLATFORMS ?= linux/amd64,linux/arm64
 
-.PHONY: help build multiarch-build push pull ghcr-pull bwrap-build bwrap-push bwrap-pull bwrap-smoke bwrap-inspect ungoogled-build ungoogled-multiarch-build ungoogled-push ungoogled-pull ungoogled-smoke ungoogled-inspect market-build market-push market-pull up down logs multiuser-check multiuser-up multiuser-down multiuser-logs multiuser-smoke lan-up lan-down lan-logs lan-smoke podman-up podman-down podman-logs podman-smoke compose-check helm-check plugin-check dockerhub-check version-check verify upstream-check smoke market-smoke inspect ghcr-inspect market-inspect
+.PHONY: help build multiarch-build push pull ghcr-pull bwrap-build bwrap-push bwrap-pull bwrap-smoke bwrap-inspect ungoogled-build ungoogled-multiarch-build ungoogled-push ungoogled-pull ungoogled-smoke ungoogled-inspect provider-check market-build market-push market-pull up down logs multiuser-check multiuser-up multiuser-down multiuser-logs multiuser-smoke lan-up lan-down lan-logs lan-smoke podman-up podman-down podman-logs podman-smoke compose-check helm-check plugin-check dockerhub-check version-check verify upstream-check smoke market-smoke inspect ghcr-inspect market-inspect
 
 help:
 	@echo "superagent-build Build the optional Super Agent prototype image (includes market)"
 	@echo "superagent-smoke Verify setup defaults, authentication and persistence"
 	@echo "superagent-up    Start its dedicated Compose project and volumes"
+	@echo "provider-check   Validate generic provider presets and discovery"
 	@echo "multiuser-check  Validate the multiuser scripts, plugins, config and Compose file"
 	@echo "multiuser-up     Start the trusted multi-user container behind Traefik/Authelia"
 	@echo "multiuser-down   Stop it without deleting the users volume"
@@ -62,14 +64,14 @@ help:
 	@echo "inspect          Inspect the remote multi-platform manifest"
 
 build:
-	docker build --pull --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --tag $(IMAGE):$(IMAGE_VERSION) .
+	docker build --pull --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg PROVIDERS_CONFIG=$(PROVIDERS_CONFIG) --tag $(IMAGE):$(IMAGE_VERSION) .
 
 multiarch-build:
-	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --tag $(IMAGE):$(IMAGE_VERSION) .
+	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg PROVIDERS_CONFIG=$(PROVIDERS_CONFIG) --tag $(IMAGE):$(IMAGE_VERSION) .
 
 push:
 	@if docker buildx imagetools inspect $(IMAGE):$(IMAGE_VERSION) >/dev/null 2>&1; then echo "refusing to overwrite existing image tag: $(IMAGE):$(IMAGE_VERSION)" >&2; exit 1; fi
-	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --tag $(IMAGE):$(IMAGE_VERSION) --push .
+	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg PROVIDERS_CONFIG=$(PROVIDERS_CONFIG) --tag $(IMAGE):$(IMAGE_VERSION) --push .
 
 pull:
 	docker pull $(IMAGE):$(IMAGE_VERSION)
@@ -88,14 +90,14 @@ bwrap-pull:
 	docker pull $(IMAGE):$(BWRAP_IMAGE_VERSION)
 
 ungoogled-build:
-	docker build --pull --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(UNGOOGLED_IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg CHROMIUM_FLAVOR=ungoogled --build-arg UNGOOGLED_CHROMIUM_VERSION=$(UNGOOGLED_CHROMIUM_VERSION) --build-arg UNGOOGLED_CHROMIUM_AMD64_SHA256=$(UNGOOGLED_CHROMIUM_AMD64_SHA256) --build-arg UNGOOGLED_CHROMIUM_ARM64_SHA256=$(UNGOOGLED_CHROMIUM_ARM64_SHA256) --tag $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) .
+	docker build --pull --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(UNGOOGLED_IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg PROVIDERS_CONFIG=$(PROVIDERS_CONFIG) --build-arg CHROMIUM_FLAVOR=ungoogled --build-arg UNGOOGLED_CHROMIUM_VERSION=$(UNGOOGLED_CHROMIUM_VERSION) --build-arg UNGOOGLED_CHROMIUM_AMD64_SHA256=$(UNGOOGLED_CHROMIUM_AMD64_SHA256) --build-arg UNGOOGLED_CHROMIUM_ARM64_SHA256=$(UNGOOGLED_CHROMIUM_ARM64_SHA256) --tag $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) .
 
 ungoogled-multiarch-build:
-	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(UNGOOGLED_IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg CHROMIUM_FLAVOR=ungoogled --build-arg UNGOOGLED_CHROMIUM_VERSION=$(UNGOOGLED_CHROMIUM_VERSION) --build-arg UNGOOGLED_CHROMIUM_AMD64_SHA256=$(UNGOOGLED_CHROMIUM_AMD64_SHA256) --build-arg UNGOOGLED_CHROMIUM_ARM64_SHA256=$(UNGOOGLED_CHROMIUM_ARM64_SHA256) --tag $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) .
+	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(UNGOOGLED_IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg PROVIDERS_CONFIG=$(PROVIDERS_CONFIG) --build-arg CHROMIUM_FLAVOR=ungoogled --build-arg UNGOOGLED_CHROMIUM_VERSION=$(UNGOOGLED_CHROMIUM_VERSION) --build-arg UNGOOGLED_CHROMIUM_AMD64_SHA256=$(UNGOOGLED_CHROMIUM_AMD64_SHA256) --build-arg UNGOOGLED_CHROMIUM_ARM64_SHA256=$(UNGOOGLED_CHROMIUM_ARM64_SHA256) --tag $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) .
 
 ungoogled-push:
 	@if docker buildx imagetools inspect $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) >/dev/null 2>&1; then echo "refusing to overwrite existing image tag: $(IMAGE):$(UNGOOGLED_IMAGE_VERSION)" >&2; exit 1; fi
-	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(UNGOOGLED_IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg CHROMIUM_FLAVOR=ungoogled --build-arg UNGOOGLED_CHROMIUM_VERSION=$(UNGOOGLED_CHROMIUM_VERSION) --build-arg UNGOOGLED_CHROMIUM_AMD64_SHA256=$(UNGOOGLED_CHROMIUM_AMD64_SHA256) --build-arg UNGOOGLED_CHROMIUM_ARM64_SHA256=$(UNGOOGLED_CHROMIUM_ARM64_SHA256) --tag $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) --push .
+	docker buildx build --platform $(PLATFORMS) --build-arg DSH_VERSION=$(DSH_VERSION) --build-arg IMAGE_VERSION=$(UNGOOGLED_IMAGE_VERSION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --build-arg NODE_IMAGE=$(NODE_IMAGE) --build-arg PNPM_VERSION=$(PNPM_VERSION) --build-arg PROVIDERS_CONFIG=$(PROVIDERS_CONFIG) --build-arg CHROMIUM_FLAVOR=ungoogled --build-arg UNGOOGLED_CHROMIUM_VERSION=$(UNGOOGLED_CHROMIUM_VERSION) --build-arg UNGOOGLED_CHROMIUM_AMD64_SHA256=$(UNGOOGLED_CHROMIUM_AMD64_SHA256) --build-arg UNGOOGLED_CHROMIUM_ARM64_SHA256=$(UNGOOGLED_CHROMIUM_ARM64_SHA256) --tag $(IMAGE):$(UNGOOGLED_IMAGE_VERSION) --push .
 
 ungoogled-pull:
 	docker pull $(IMAGE):$(UNGOOGLED_IMAGE_VERSION)
@@ -134,6 +136,12 @@ down:
 
 logs:
 	docker compose logs --follow deepseek-harness
+
+provider-check:
+	node --check scripts/provider-preset.cjs
+	node --test scripts/provider-preset.test.cjs
+	node scripts/provider-preset.cjs --validate providers/empty.json
+	node scripts/provider-preset.cjs --validate providers/example.json
 
 multiuser-check:
 	node --check scripts/dsh-multiuser-supervisor.cjs
@@ -217,7 +225,7 @@ version-check:
 ui-check:
 	node --check scripts/capture-readme.cjs
 
-verify: compose-check multiuser-check helm-check plugin-check dockerhub-check version-check ui-check
+verify: compose-check provider-check multiuser-check helm-check plugin-check dockerhub-check version-check ui-check
 
 upstream-check:
 	./scripts/check-upstream-dsh.sh $(DSH_VERSION)

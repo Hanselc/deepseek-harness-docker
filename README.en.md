@@ -285,6 +285,23 @@ Configuration keys in `config/multiuser.json`: `name`, `authUser`, optional `int
 
 **Security and ACLs:** the container remains one UID (`node`, 1000), so per-user POSIX ACLs cannot distinguish users: every child is the owner of every file it creates. Real per-user file isolation requires distinct UIDs or containers. The plugins enforce product policy; they do not turn the container into a multi-tenant sandbox. See [docs/multiuser.md](docs/multiuser.md) for the full threat model, operations, backup/upgrade guidance, and ACL analysis.
 
+### Preconfigured model providers at build time
+
+The image can bake a generic provider preset so the Models page and model picker are populated when the app opens. Provider presets are not tied to a particular vendor: they support OpenAI-compatible, Anthropic, and Gemini routes. Ollama Cloud is only an example in `providers/example.json`.
+
+```bash
+cp providers/example.json providers/my-providers.json
+# Edit providers/my-providers.json: providers, base URLs, apiKeyEnv, models,
+# discover, and optional defaultModel.
+make build PROVIDERS_CONFIG=providers/my-providers.json
+```
+
+`providers/empty.json` is the default, so an image built without a preset keeps the existing DeepSeek-only behavior. A preset can contain multiple providers and static model metadata. Set `discover: true` on a provider to query its native model-listing endpoint at Web startup; static models are used as a fallback and can correct metadata. The generated Cordis patch is passed to every Web process; no client plugin is needed.
+
+**API keys are not baked into the image.** `apiKeyEnv` names an environment variable resolved by DSH, or the key can be saved once from Models. If the endpoint is keyless and `defaultModel` is set, entering the app needs no provider setup at all. For a keyed endpoint, provide the environment key at container start; startup model discovery uses that environment value (a UI-only key is not visible to the pre-start generator).
+
+Compose reads the optional `providers.env` file (see `providers.env.example`) so the variables named by each `apiKeyEnv` reach the container without being added to the Compose YAML; set `DSH_PROVIDERS_ENV_FILE` to use another path. The preset file can also be mounted at runtime through `DSH_PROVIDERS_CONFIG=/etc/dsh/providers.json` instead of rebuilding. `compose.yaml` passes `PROVIDERS_CONFIG` as a build argument. The multiuser supervisor applies the same preset to every per-user DSH process. See [docs/provider-presets.md](docs/provider-presets.md) for the complete schema, protocol discovery table, Ollama Cloud example, failure behavior, and security limits.
+
 ### Browser desktop, official Browser Use, and human takeover
 
 The image includes Debian Chromium, CJK fonts, an Xvfb/Openbox desktop, and noVNC. It mounts the official `@deepseek-ai/dsh-experimental-browser-use-playwright-mcp` provider with `mode: attach` against `http://127.0.0.1:9222`. Model automation and the visible desktop therefore use the same Chromium tabs, cookies, login state, and profile persisted at `/home/node/.dsh/chrome-profile`.
@@ -565,7 +582,7 @@ helm lint --strict charts/deepseek-harness
 helm template deepseek-harness charts/deepseek-harness >/dev/null
 ```
 
-Acceptance criteria: the CLI reports the pinned version; the dumped `webserver.config.host` is `127.0.0.1`, with a TCP relay on one concrete container IP; the unauthenticated root returns `401`, while the launch token exchanges for a cookie and loads the page; Compose reaches `healthy`; logs contain no plugin/config errors; the container does not try to hand off to a host browser; and Helm renders both persistent and ephemeral-storage variants. Build both `linux/amd64` and `linux/arm64` and actually spawn a PTY before publishing because terminal and sandbox dependencies include native code. The default entry points are `make verify`, `make build`, and `make smoke`; the optional market uses `make market-build` and `make market-smoke`, which also prove that the market package is absent from the default image. The trusted multi-user mode adds `make multiuser-check` and `make multiuser-smoke`.
+Acceptance criteria: the CLI reports the pinned version; the dumped `webserver.config.host` is `127.0.0.1`, with a TCP relay on one concrete container IP; the unauthenticated root returns `401`, while the launch token exchanges for a cookie and loads the page; Compose reaches `healthy`; logs contain no plugin/config errors; the container does not try to hand off to a host browser; and Helm renders both persistent and ephemeral-storage variants. Build both `linux/amd64` and `linux/arm64` and actually spawn a PTY before publishing because terminal and sandbox dependencies include native code. The default entry points are `make verify`, `make build`, and `make smoke`; the optional market uses `make market-build` and `make market-smoke`, which also prove that the market package is absent from the default image. The trusted multi-user mode adds `make multiuser-check` and `make multiuser-smoke`; provider presets add `make provider-check`.
 
 ## Troubleshooting
 
@@ -603,6 +620,11 @@ The last command must print `/workspace`. An `EACCES` under `/workspace` instead
 | `scripts/dsh-multiuser-supervisor.cjs` | Per-user DSH process supervisor and token capture |
 | `scripts/dsh-multiuser-gateway.cjs` | `Remote-User` routing, cookie rewrite, proxy-secret admission, and token broker |
 | `scripts/multiuser-smoke.sh` | Two-user same-URL, picker/workspace policy, cookie, and restart smoke test |
+| `providers/empty.json` | Default build-time provider preset (no extra providers) |
+| `providers/example.json` | Generic OpenAI/Anthropic/Gemini preset example, including Ollama Cloud |
+| `scripts/provider-preset.cjs` | Generic preset validator, model discovery, and Cordis patch generator |
+| `providers.env.example` | Optional Compose env file for provider API keys (real file is ignored) |
+| `docs/provider-presets.md` | Provider preset schema, build/runtime injection, discovery and security |
 | `config/Caddyfile.lan` | Caddy configuration for the protected LAN endpoint |
 | `.env.lan.example` | Secret-free LAN configuration template |
 | `web.market.cordis.patch.yml` | Profile configuration used only by the optional market derivative |

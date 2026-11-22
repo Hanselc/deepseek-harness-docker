@@ -22,6 +22,10 @@ The optional `market` image variant contains a third-party community catalog and
 
 From DSH `0.2.1-alpha.2`, the application itself binds container loopback. The entrypoint adds a raw TCP relay on one concrete container interface address, never a wildcard Web listener. It preserves authentication and Host/Origin headers and forwards WebSockets unchanged. Ambiguous address selection fails closed; use `DSH_WEB_RELAY_INTERFACE` only to select the intended container interface. Host networking is unsupported. This relay is not an authentication or TLS gateway and must not be published directly beyond host loopback.
 
+## Provider presets
+
+Provider presets (`PROVIDERS_CONFIG`) are deployment configuration, not a secret store. The validator rejects `apiKey` values; use `apiKeyEnv` with an environment secret (Compose can read the ignored `providers.env`) or save the key from the Models page. `headers` is passed through to the provider and must not carry credentials. Enabling `discover: true` makes the container contact the configured endpoint at Web startup; static models avoid that egress. The preset is baked into the image and is trusted input.
+
 ## Trusted multi-user mode
 
 The optional `compose.multiuser.yaml` mode runs one container with one DSH process per Authelia user. It is designed for trusted users, not multi-tenancy:

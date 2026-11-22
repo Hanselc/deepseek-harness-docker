@@ -19,3 +19,6 @@ test/
 # Trusted multi-user deployment: private user list and environment.
 config/multiuser.json
 .env.multiuser
+
+# Provider API keys for compose.
+providers.env

@@ -189,6 +189,28 @@ for argument in "$@"; do
 done
 
 if [ "${is_web}" = 1 ]; then
+  provider_config="${DSH_PROVIDERS_CONFIG:-/opt/deepseek-harness/providers.json}"
+  provider_patch=/tmp/dsh-providers.cordis.patch.yml
+  if [ -f "${provider_config}" ]; then
+    if node /opt/deepseek-harness/provider-preset.cjs --config "${provider_config}" --output "${provider_patch}"; then
+      if [ -s "${provider_patch}" ]; then
+        if [ "${1:-}" = "web" ]; then
+          provider_command="$1"
+          shift
+          set -- "${provider_command}" --patch "${provider_patch}" "$@"
+        elif [ "${1:-}" = "--profile" ] && [ "${2:-}" = "web" ]; then
+          provider_command="$1"
+          provider_profile="$2"
+          shift 2
+          set -- "${provider_command}" "${provider_profile}" --patch "${provider_patch}" "$@"
+        else
+          set -- "$@" --patch "${provider_patch}"
+        fi
+      fi
+    else
+      echo "provider preset: discovery failed; continuing without the preset" >&2
+    fi
+  fi
   node /opt/deepseek-harness/dsh-web-relay.cjs "$$" "$@" &
   relay_pid=$!
 fi
