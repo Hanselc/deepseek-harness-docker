@@ -6,7 +6,7 @@ on:
       version:
         description: Exact DSH version already published as a market image
         required: true
-        default: 0.2.2-rc.5
+        default: 0.2.3-alpha.2
         type: string
       revision:
         description: Immutable container revision, for example r1
@@ -25,7 +25,7 @@ jobs:
     env:
       DSH_UI_VERSION: ${{ inputs.version }}
       DSH_UI_REVISION: ${{ inputs.revision }}
-      DSH_UI_MARKET_VERSION: 1.66.9
+      DSH_UI_MARKET_VERSION: 1.78.0
       PLAYWRIGHT_VERSION: 1.64.1
     steps:
       - uses: actions/checkout@v7

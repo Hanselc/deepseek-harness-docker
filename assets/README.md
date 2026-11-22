@@ -1,6 +1,6 @@
 # README screenshots
 
-The four screenshots show DSH `0.2.2-rc.5` in Light mode. Each capture used a disposable container with an empty workspace and no configured model.
+The four screenshots show DSH `0.2.2-rc.5` in Light mode. Each capture used a disposable container with an empty workspace and no configured model. They remain the published reference captures until the `0.2.3-alpha.2` market image is published and the isolated capture workflows are rerun.
 
 | Screenshot | Image variant | What it shows |
 | --- | --- | --- |

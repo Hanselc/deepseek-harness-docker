@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_IMAGE=docker.io/library/node:24-trixie
+ARG NODE_IMAGE=docker.io/library/node:24.22.3-trixie
 ARG BASE_IMAGE=docker.io/runzhliu/deepseek-harness:0.2.2-rc.5-r1-market.1
 FROM ${NODE_IMAGE} AS superagent-builder
 ARG SUPERAGENT_REVISION=6337fc823ce20251c8de8085948165c81aaa701e

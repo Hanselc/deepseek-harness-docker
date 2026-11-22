@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "defaults": {
+    "heapMb": 256
+  },
+  "users": [
+    {
+      "name": "alice",
+      "authUser": "alice",
+      "internalPort": 3080
+    },
+    {
+      "name": "bob",
+      "authUser": "bob",
+      "internalPort": 3081
+    }
+  ]
+}

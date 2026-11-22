@@ -94,6 +94,28 @@ awk '
     browser = 0
   }
 
+  /^> \*\*(alpha\.4|alpha\.3|升级提醒|兼容性提醒|0\.2\.1)/ {
+    next
+  }
+
+  /^> \*\*0\.2\.2 迁移：\*\*/ {
+    print "> 0.2.2 迁移：Node.js 24.9；历史迁移说明见 [上游 Release](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.2)。"
+    print ""
+    next
+  }
+
+  /^> \*\*0\.2\.3 迁移：\*\*/ {
+    print "> 0.2.3 迁移：Node.js 24.22.3+；Cordis 4.0、客户端插件、工作目录/PTC/鉴权变更见 [升级说明](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.2)。"
+    print ""
+    next
+  }
+
+  /^_浅色界面实拍/ {
+    print "_截图来自 0.2.2-rc.5；最新版本说明见 GitHub README。_"
+    print ""
+    next
+  }
+
   /^## 文件$/ {
     layout = 1
     print

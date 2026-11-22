@@ -16,14 +16,16 @@ This project packages the official DSH npm distribution into a reproducible Dock
 
 **One of the earliest unofficial Docker image projects for DeepSeek Harness, maintained since [August 13, 2026](https://github.com/runzhliu/deepseek-harness-docker/commit/0d12e3bdb6dc5c0f408870b73b1914359a4f9aca).** It provides AMD64/ARM64 images on Docker Hub and GHCR, Docker Compose, rootless Podman, and Helm deployments, with ongoing upstream release tracking.
 
-> Current baseline: `@deepseek-ai/dsh@0.2.2-rc.5`. DeepSeek Harness is still a pre-release. Re-run the build and smoke tests before every version upgrade.
+> Current baseline: `@deepseek-ai/dsh@0.2.3-alpha.2`. DeepSeek Harness is still a pre-release. Re-run the build and smoke tests before every version upgrade.
 
-`0.2.2-rc.5` maps directly to the official [`dsh-v0.2.2-rc.5`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.5) Release and [`@deepseek-ai/dsh@0.2.2-rc.5`](https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.2-rc.5) in the npm Registry; it is not a project-defined version. This project packages the installable npm distribution instead of building source, and intentionally does not publish a drifting Docker `latest` tag.
+`0.2.3-alpha.2` maps directly to the official [`dsh-v0.2.3-alpha.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.2) Release and [`@deepseek-ai/dsh@0.2.3-alpha.2`](https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.3-alpha.2) in the npm Registry; it is not a project-defined version. This project packages the installable npm distribution instead of building source, and intentionally does not publish a drifting Docker `latest` tag.
 
 
-In `0.2.2-rc.5`, Automatic search uses server-side search on the `deepseek-official` and `deepseek-account` routes. Model tokens are billed without a separate per-search fee. Other routes default to the DeepSeek Search API. Server-side search has its own Base URL. For a custom gateway, set its Messages-compatible endpoint in Web search and fetch settings, or select DeepSeek Search API to keep the previous behavior. [Upstream migration guide](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/upgrade-guide/v0.2.2-rc.4/web-search-deepseek-model-default/guide.md)
+In `0.2.3-alpha.2`, Automatic search uses server-side search on the `deepseek-official` and `deepseek-account` routes. Model tokens are billed without a separate per-search fee. Other routes default to the DeepSeek Search API. Server-side search has its own Base URL. For a custom gateway, set its Messages-compatible endpoint in Web search and fetch settings, or select DeepSeek Search API to keep the previous behavior. [Upstream migration guide](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.2)
 
 > **0.2.2 migration:** Node.js `24.9` is the minimum. Review custom plugins against the Session-projection, tool-execution and PTC APIs. Web Fetch allows private addresses, so deployments must restrict egress themselves. Set explicit capacities for custom models. Back up the data volume before upgrading and restore that backup when downgrading. See the [upstream notes](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.2).
+
+> **0.2.3 migration:** Node.js `24.22.3` (or `26.13.1+`) is the minimum. 0.2.3-alpha.1 syncs Cordis 4.0.0-rc.12 and Loader/Include, changes client plugin artifacts and the session-status package, removes the old `working_directory` entry in favor of worktree `enter_worktree`/`exit_worktree`, and changes Node PTC, Python PTC, DeepSeek auth and session fork/storage interfaces. Custom plugins, profile patches and the browser-desktop plugin need migration. Back up `dsh-home` and validate on a copy. The Super Agent variant remains on 0.2.2-rc.5 until the upstream prototype supports 0.2.3.
 
 > **alpha.4 plugin compatibility:** A third-party plugin's `engines.dsh` declaration takes precedence when checking DSH compatibility. Plugins without it retain the previous rules. Check supported version ranges when upgrading third-party plugins.
 
@@ -45,7 +47,7 @@ In `0.2.2-rc.5`, Automatic search uses server-side search on the `deepseek-offic
 
 ![DeepSeek Harness Web UI running from this image](assets/deepseek-harness-web.png)
 
-_Light-theme capture (2026-11-19, DSH `0.2.2-rc.5`) from an isolated, empty demo workspace. No personal sessions or credentials are shown. No model was configured and no model call was made._
+_Light-theme capture (2026-11-19, DSH `0.2.2-rc.5`; a 0.2.3-alpha.2 capture will be refreshed after publication) from an isolated, empty demo workspace. No personal sessions or credentials are shown. No model was configured and no model call was made._
 
 ## Project status
 
@@ -102,7 +104,7 @@ User code lives separately at `/workspace`. Compose combines a named `dsh-home` 
 
 | Problem | Upstream behavior | Project decision |
 | --- | --- | --- |
-| Node / glibc | Requires Node 24.9+; some user binaries require a newer glibc | Pin the official non-slim `node:24-trixie`, Debian 13 with glibc 2.41 |
+| Node / glibc | Requires Node 24.22.3+; some user binaries require a newer glibc | Pin the official non-slim `node:24.22.3-trixie`, Debian 13 with glibc 2.41 |
 | Native dependencies and Agent tools | `node-pty` or third-party plugins may need native builds; the Agent needs common development commands | Install DSH in a separate stage; intentionally retain the buildpack-deps toolchain at runtime and add `jq`, `less`, `ripgrep`, `rsync`, `zip`, and related tools |
 | Web bind | Both CLI and configuration reject wildcard addresses from `0.2.1-alpha.2` | Keep DSH on loopback; relay one concrete container IP; host ports 3080/6080 remain on `127.0.0.1` |
 | Web security | Launch-token authentication, Host/Origin checks, and optional native TLS; noVNC is unauthenticated and tools can execute code | HTTP with loopback publication by default; optional Caddy HTTPS + Basic Auth; no public Ingress/LoadBalancer |
@@ -137,7 +139,7 @@ DSH_WORKSPACE=/absolute/path/to/project \
   docker compose -f compose.yaml -f compose.bwrap.yaml up -d --no-build
 ```
 
-The overlay selects immutable image `runzhliu/deepseek-harness:0.2.2-rc.5-r1-bwrap.1` and adds `seccomp=unconfined` plus `systempaths=unconfined`, allowing non-root `bwrap` to create its inner user/mount/PID namespace and mount a fresh `/proc`. UID 1000, a read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, and minimal mounts remain in force. The two options still widen the outer container's syscall and `/proc` surface, so this variant never becomes the default. The host must also permit unprivileged user namespaces.
+The overlay selects immutable image `runzhliu/deepseek-harness:0.2.3-alpha.2-r1-bwrap.1` and adds `seccomp=unconfined` plus `systempaths=unconfined`, allowing non-root `bwrap` to create its inner user/mount/PID namespace and mount a fresh `/proc`. UID 1000, a read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, and minimal mounts remain in force. The two options still widen the outer container's syscall and `/proc` surface, so this variant never becomes the default. The host must also permit unprivileged user namespaces.
 
 This path is supported only for Docker Compose, not rootless Podman or Kubernetes. On Podman hosts where Landlock exists in the kernel, enable that LSM instead. Reproduce the confinement boundary on the target Docker host with:
 
@@ -181,7 +183,7 @@ Open the complete <http://127.0.0.1:3080> URL carrying `?token=...` after `dsh w
 
 When `DSH_WORKSPACE` is unset, Compose uses a separate `dsh-workspace` named volume so the Agent cannot accidentally modify this repository. Set `DSH_WORKSPACE=/absolute/path/to/project` only after choosing the intended host project.
 
-The default immutable image revision is [`runzhliu/deepseek-harness:0.2.2-rc.5-r1`](https://hub.docker.com/r/runzhliu/deepseek-harness). The same multi-platform artifact is also published to GitHub Container Registry as [`ghcr.io/runzhliu/deepseek-harness:0.2.2-rc.5-r1`](https://github.com/users/runzhliu/packages/container/package/deepseek-harness). `r1` attaches the matching official Playwright MCP Browser Use provider to the visible Chromium and retains versioned noVNC asset paths so an upgrade cannot mix incompatible cached ES modules. Compose keeps the build definition for reproducibility and review; run `docker compose build --pull` before startup when you explicitly want a local build.
+The default immutable image revision is [`runzhliu/deepseek-harness:0.2.3-alpha.2-r1`](https://hub.docker.com/r/runzhliu/deepseek-harness). The same multi-platform artifact is also published to GitHub Container Registry as [`ghcr.io/runzhliu/deepseek-harness:0.2.3-alpha.2-r1`](https://github.com/users/runzhliu/packages/container/package/deepseek-harness). `r1` attaches the matching official Playwright MCP Browser Use provider to the visible Chromium and retains versioned noVNC asset paths so an upgrade cannot mix incompatible cached ES modules. Compose keeps the build definition for reproducibility and review; run `docker compose build --pull` before startup when you explicitly want a local build.
 
 ### Rootless Podman
 
@@ -247,6 +249,42 @@ Find the local startup URL after `dsh web:` in `make lan-logs`, take only its `?
 
 This mode is for a small number of users in the **same trust domain**, not DSH multi-tenancy. Every authenticated user shares the sessions, settings, credentials, and Agent code-execution authority. Deploy separate instances and volumes for mutually untrusted users. Restrict source networks with the host firewall and never forward this endpoint to the public Internet. Run `make lan-smoke` to verify TLS, both authentication layers, Origin rejection, same-origin noVNC, and loopback-only native ports.
 
+### Trusted multi-user deployment (one container behind Traefik/Authelia)
+
+This mode lets several trusted Authelia users share one container while keeping separate DSH homes, sessions, credentials, settings, and workspace trees. Everyone opens the same URL, for example `https://chat.codeorbita.com`; the container gateway maps the Authelia `Remote-User` header to a per-user `dsh web` process. It does not create one container per user.
+
+The gateway requires a Traefik-added `X-DSH-Proxy-Secret`, maps `Remote-User` to the configured user, optionally checks `Remote-Groups`, rewrites DSH cookies to `dsh-<user>-auth-*`, adds `Secure` over HTTPS, and proxies HTTP/WebSocket traffic to the user's loopback port. Each child's launch token is captured and injected only on the upstream root request; it never appears in the browser URL, browser history, or container logs.
+
+The default workspace is **writable and directly editable**. The `@codeorbita/dsh-workspace-policy` plugin replaces the workspace registry so users can create sub-workspaces under the default workspace or `/workspace/<user>/workspaces`, while arbitrary paths and default-workspace rename/delete/reorder are rejected. `@codeorbita/dsh-directory-picker-policy` roots the in-app directory picker at the user's tree and limits creation to the same roots. This is policy enforcement, not OS isolation; use per-user containers or UIDs when users do not trust each other.
+
+Quick start:
+
+```bash
+cp .env.multiuser.example .env.multiuser
+cp config/multiuser.example.json config/multiuser.json
+# Edit .env.multiuser: public host, proxy secret, Traefik network/middleware,
+# users volume, and resource limits.
+# Edit config/multiuser.json: each user's name, Authelia authUser, and ports.
+make multiuser-up
+make multiuser-logs
+make multiuser-smoke
+```
+
+The deployment is defined in [`compose.multiuser.yaml`](compose.multiuser.yaml). It uses the pinned image from `.env.multiuser`; the multiuser scripts, Cordis patch, and plugins are mounted from this checkout. The container joins the external `TRAEFIK_NETWORK`, exposes port `8080` only to that network, and publishes no host ports. Traefik terminates TLS and applies Authelia forward-auth; `config/traefik.multiuser.example.yaml` and `config/authelia.multiuser.example.yml` show the required router, `authResponseHeaders`, access rule, and secret-header middleware. Change `DSH_MULTIUSER_PUBLIC_HOST` in `.env.multiuser`; use the same value in the Authelia access rule.
+
+Workspace layout per user:
+
+```text
+/workspace/<user>/
+  .dsh/                                         # DSH_HOME
+  workspaces/                                   # writable sibling workspaces
+  documents/deepseek-harness/default-workspace/ # per-user default workspace
+```
+
+Configuration keys in `config/multiuser.json`: `name`, `authUser`, optional `internalPort`, `heapMb`, and `allowedGroups`. `DSH_MULTIUSER_WORKSPACE_PICKER=0` hides the Add-workspace UI; the server-side workspace policy still rejects direct API calls outside the allowed roots. Desktop, Browser Use, and noVNC are disabled in this mode.
+
+**Security and ACLs:** the container remains one UID (`node`, 1000), so per-user POSIX ACLs cannot distinguish users: every child is the owner of every file it creates. Real per-user file isolation requires distinct UIDs or containers. The plugins enforce product policy; they do not turn the container into a multi-tenant sandbox. See [docs/multiuser.md](docs/multiuser.md) for the full threat model, operations, backup/upgrade guidance, and ACL analysis.
+
 ### Browser desktop, official Browser Use, and human takeover
 
 The image includes Debian Chromium, CJK fonts, an Xvfb/Openbox desktop, and noVNC. It mounts the official `@deepseek-ai/dsh-experimental-browser-use-playwright-mcp` provider with `mode: attach` against `http://127.0.0.1:9222`. Model automation and the visible desktop therefore use the same Chromium tabs, cookies, login state, and profile persisted at `/home/node/.dsh/chrome-profile`.
@@ -265,7 +303,7 @@ The public plugin uses Harness's `sidebar.footer.action` and `shell.overlay` ext
 
 ![Movable and resizable Chromium browser embedded in the Harness Web UI](assets/browser-desktop-webui.png)
 
-_Light-theme capture (2026-11-19, DSH `0.2.2-rc.5`, browser-desktop plugin `0.1.6`): the browser panel is inside Harness and displays the official 0.2.2-rc.5 GitHub Release page._
+_Light-theme capture (2026-11-19, DSH `0.2.2-rc.5`, browser-desktop plugin `0.1.6`; the 0.2.3-alpha.2 capture is pending publication): the browser panel is inside Harness and displays the then-current GitHub Release page._
 
 This follows the visible-desktop idea from [`docker-antigravity`](https://github.com/runzhliu/docker-antigravity) without adopting its amd64 base or Selkies. Debian's native packages keep the image usable on both Apple Silicon and x86 Linux. The official [Browser Use architecture](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/browser-use.md) and [Sidebar Browser limitations](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/ui-sidebar-browser/README.md) describe the boundary between these layers. Port 6080 is loopback-only like 3080; the native noVNC endpoint has no authentication and must never be exposed directly. The optional LAN overlay carries the versioned `/novnc-*` route through the same HTTPS and authentication boundary as the Web UI.
 
@@ -279,15 +317,15 @@ Compose gives Chromium a 1GB `/dev/shm`. The launcher adds `--no-sandbox` only t
 
 #### Optional ungoogled-chromium image
 
-The default image keeps Debian Chromium for Debian's security-update and distribution supply chain. Select the separate [`runzhliu/deepseek-harness:0.2.2-rc.5-r1-ungoogled.1`](https://hub.docker.com/r/runzhliu/deepseek-harness/tags) variant only when idle browser egress must be minimized:
+The default image keeps Debian Chromium for Debian's security-update and distribution supply chain. Select the separate [`runzhliu/deepseek-harness:0.2.3-alpha.2-r1-ungoogled.1`](https://hub.docker.com/r/runzhliu/deepseek-harness/tags) variant only when idle browser egress must be minimized:
 
 ```bash
-export DSH_IMAGE_VERSION=0.2.2-rc.5-r1-ungoogled.1
+export DSH_IMAGE_VERSION=0.2.3-alpha.2-r1-ungoogled.1
 docker compose pull
 DSH_WORKSPACE=/absolute/path/to/your/project docker compose up -d --no-build
 ```
 
-This image pins `ungoogled-chromium@152.0.7977.82-1` and verifies distinct SHA256 values for the amd64 and arm64 downloads. Its smoke test starts the complete Harness/noVNC desktop, verifies the official Browser Use attachment configuration, invokes `browser_open`, and then rejects any GCM port `5228` connection or `google_apis/gcm` log. It automatically uses `/home/node/.dsh/chrome-profile-ungoogled`, separate from the default Debian Chromium profile. GHCR uses the same tag; Helm users can explicitly set `--set image.tag=0.2.2-rc.5-r1-ungoogled.1`.
+This image pins `ungoogled-chromium@152.0.7977.82-1` and verifies distinct SHA256 values for the amd64 and arm64 downloads. Its smoke test starts the complete Harness/noVNC desktop, verifies the official Browser Use attachment configuration, invokes `browser_open`, and then rejects any GCM port `5228` connection or `google_apis/gcm` log. It automatically uses `/home/node/.dsh/chrome-profile-ungoogled`, separate from the default Debian Chromium profile. GHCR uses the same tag; Helm users can explicitly set `--set image.tag=0.2.3-alpha.2-r1-ungoogled.1`.
 
 The variant uses the community [`ungoogled-chromium-portablelinux`](https://github.com/ungoogled-software/ungoogled-chromium-portablelinux) build, not a Debian package. The [upstream binary index](https://github.com/ungoogled-software/ungoogled-chromium-binaries) warns that contributor binaries may not be reproducible and their authenticity cannot be guaranteed; Google Safe Browsing, sync, push, Widevine, and Chrome Web Store integration may also be absent or require manual setup. It therefore never replaces the default image or receives a moving `latest` tag. Reproduce and test it locally with:
 
@@ -302,14 +340,14 @@ The plugin is a standalone DSH bundle under [`plugins/dsh-browser-desktop`](plug
 
 ```bash
 npm pack ./plugins/dsh-browser-desktop --pack-destination /tmp
-dsh plugin --profile web add /tmp/runzhliu-dsh-browser-desktop-0.1.6.tgz
+dsh plugin --profile web add /tmp/runzhliu-dsh-browser-desktop-0.1.7.tgz
 ```
 
-Plugin `0.1.6` adds compatibility with the DSH `0.2.2` client-module runtime while retaining `0.1.2`, `0.2.0` and `0.2.1` compatibility; older DSH `0.1.0`/`0.1.1` release candidates should keep using plugin `0.1.1`. After npm publication, install it with `dsh plugin --profile web add @runzhliu/dsh-browser-desktop`. The npm package supplies only the Harness host/Web integration; it does not install Chromium, Xvfb, noVNC, or an official Browser Use provider. This repository's image is the complete reference runtime. Official DSH discovers community plugins through npm/GitHub and the `dsh-plugin` GitHub topic.
+Plugin `0.1.7` adds compatibility with the DSH `0.2.3` client-module runtime while retaining `0.2.2`, `0.2.1`, `0.2.0` and `0.1.2` compatibility; older DSH `0.1.0`/`0.1.1` release candidates should keep using plugin `0.1.1`. After npm publication, install it with `dsh plugin --profile web add @runzhliu/dsh-browser-desktop`. The npm package supplies only the Harness host/Web integration; it does not install Chromium, Xvfb, noVNC, or an official Browser Use provider. This repository's image is the complete reference runtime. Official DSH discovers community plugins through npm/GitHub and the `dsh-plugin` GitHub topic.
 
 ### Optional preinstalled Super Agent image
 
-`runzhliu/deepseek-harness:0.2.2-rc.5-r1-superagent.1` extends the market image with the [DeepSeek Super Agent prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) `0.1.0`, pinned to commit [`6337fc8`](https://github.com/deepseek-ai/dsh-superagent-prototype/commit/6337fc823ce20251c8de8085948165c81aaa701e). It includes GitHub CLI `2.103.3`, tmux and Git LFS, with matching amd64/arm64 images on Docker Hub and GHCR.
+`runzhliu/deepseek-harness:0.2.2-rc.5-r1-superagent.1` extends the market image with the [DeepSeek Super Agent prototype](https://github.com/deepseek-ai/dsh-superagent-prototype) `0.1.0`, pinned to commit [`6337fc8`](https://github.com/deepseek-ai/dsh-superagent-prototype/commit/6337fc823ce20251c8de8085948165c81aaa701e). It includes GitHub CLI `2.103.3`, tmux and Git LFS, with matching amd64/arm64 images on Docker Hub and GHCR. This variant remains **held on the 0.2.2-rc.5 baseline** and is not rebuilt on 0.2.3-alpha.2 until the upstream prototype supports the new runtime.
 
 Upstream describes it as a research prototype, not an official DeepSeek product. This variant preinstalls the environment: **processing, Sources and automatic evaluation are off on first startup, with no repository or model connected**. Complete setup in the Superagent panel. It contains upstream code plus a reviewable [container compatibility patch](superagent/container-compat.patch); the local company GitLab adapter, internal models, Sessions and credentials are excluded.
 
@@ -347,11 +385,11 @@ DSH_WORKSPACE=/absolute/path/to/your/project \
   docker compose -f compose.yaml -f compose.market.yaml up -d --no-build
 ```
 
-The variant has the unambiguous `runzhliu/deepseek-harness:0.2.2-rc.5-r1-market.1` tag and pins `dshmarket@1.66.9`; it does not replace the default DSH tag or `latest`. It is an optional community integration, not a DeepSeek component, and neither DeepSeek nor this project audits or endorses catalog entries.
+The variant has the unambiguous `runzhliu/deepseek-harness:0.2.3-alpha.2-r1-market.1` tag and pins `dshmarket@1.78.0`; it does not replace the default DSH tag or `latest`. It is an optional community integration, not a DeepSeek component, and neither DeepSeek nor this project audits or endorses catalog entries.
 
 ![Light-theme community plugin market in the optional market image](assets/plugin-market-webui.png)
 
-_Captured from the optional market image (2026-11-19, DSH `0.2.2-rc.5`, `dshmarket@1.66.9`); this page is absent from the default image. Catalog entries and compatibility indicators change over time. This screenshot shows browsing only; none of the displayed plugins were installed._
+_Captured from the optional market image (2026-11-19, DSH `0.2.2-rc.5`, `dshmarket@1.66.9`; the 0.2.3-alpha.2 capture is pending publication); this page is absent from the default image. Catalog entries and compatibility indicators change over time. This screenshot shows browsing only; none of the displayed plugins were installed._
 
 The market package itself is pinned and copied at build time. Plugins installed through it and the pnpm store persist in the `dsh-home` volume. Installation needs container egress to npm/GitHub, and third-party build scripts should remain blocked until separately reviewed and approved. One-click market restart is disabled; apply lifecycle changes with `docker compose restart` or a Kubernetes rollout.
 
@@ -362,7 +400,7 @@ make market-build
 make market-smoke
 ```
 
-Helm continues to default to the official-DSH image; it uses the market variant only when you explicitly pass `--set image.tag=0.2.2-rc.5-r1-market.1`.
+Helm continues to default to the official-DSH image; it uses the market variant only when you explicitly pass `--set image.tag=0.2.3-alpha.2-r1-market.1`.
 
 A reused `dsh-home` previously managed by another pnpm major can fail installation with `ERR_PNPM_UNEXPECTED_STORE`. Stop DSH and run the explicit one-time migration:
 
@@ -393,7 +431,7 @@ docker compose down
 Build:
 
 ```bash
-docker build -t runzhliu/deepseek-harness:0.2.2-rc.5-r1 .
+docker build -t runzhliu/deepseek-harness:0.2.3-alpha.2-r1 .
 ```
 
 Run the Web UI:
@@ -407,7 +445,7 @@ docker run --rm \
   --shm-size 1g \
   --mount type=volume,src=dsh-home,dst=/home/node/.dsh \
   --mount type=bind,src="$PWD",dst=/workspace \
-  runzhliu/deepseek-harness:0.2.2-rc.5-r1
+  runzhliu/deepseek-harness:0.2.3-alpha.2-r1
 ```
 
 The foreground command prints the tokenized startup URL; open that exact URL. Do not shorten the publication to `-p 3080:3080`, and do not place this service behind a public Ingress: this configuration does not enable Web TLS, and noVNC on 6080 has no authentication.
@@ -421,7 +459,7 @@ docker run --rm \
   --env DEEPSEEK_API_KEY \
   --mount type=volume,src=dsh-home,dst=/home/node/.dsh \
   --mount type=bind,src="$PWD",dst=/workspace \
-  runzhliu/deepseek-harness:0.2.2-rc.5-r1 \
+  runzhliu/deepseek-harness:0.2.3-alpha.2-r1 \
   --profile headless "summarize this repository"
 ```
 
@@ -438,7 +476,7 @@ helm upgrade --install deepseek-harness charts/deepseek-harness \
   --namespace deepseek-harness \
   --create-namespace \
   --set image.repository=runzhliu/deepseek-harness \
-  --set image.tag=0.2.2-rc.5-r1
+  --set image.tag=0.2.3-alpha.2-r1
 ```
 
 Kind or Minikube can pull the default `runzhliu/deepseek-harness` image directly, or you can load a local image under the same name first.
@@ -468,21 +506,21 @@ Set `workspace.existingClaim` to mount a persistent workspace PVC. Without it, `
 
 ## Upgrade the DSH version
 
-DSH `0.2.2-rc.5` requires Node.js **24.9 or newer**. When upgrading from alpha.2, back up the profile, then remove `@deepseek-ai/dsh-experimental-tool-worktree` from `package.json` → `dsh.profile.bundles` if it was manually enabled. Its entry is now part of upstream change requests and worktrees; model and credential settings do not need to be reset.
+DSH `0.2.3-alpha.2` requires Node.js **24.22.3 or newer** (or `26.13.1+`). Back up `dsh-home` before upgrading and validate the upgrade on a copy; restore the pre-upgrade backup when downgrading. 0.2.3-alpha.1 includes Cordis 4.0, client plugin artifact, working-directory/worktree, PTC, DeepSeek auth and related migrations; see the [upstream Release](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.2).
 
 The build argument pins the package:
 
 ```bash
 docker build \
-  --build-arg DSH_VERSION=0.2.2-rc.5 \
-  --build-arg IMAGE_VERSION=0.2.2-rc.5-r1 \
-  -t runzhliu/deepseek-harness:0.2.2-rc.5-r1 .
+  --build-arg DSH_VERSION=0.2.3-alpha.2 \
+  --build-arg IMAGE_VERSION=0.2.3-alpha.2-r1 \
+  -t runzhliu/deepseek-harness:0.2.3-alpha.2-r1 .
 ```
 
 Compose keeps the upstream version and immutable container revision separate:
 
 ```bash
-DSH_VERSION=0.2.2-rc.5 DSH_IMAGE_VERSION=0.2.2-rc.5-r1 docker compose build --pull
+DSH_VERSION=0.2.3-alpha.2 DSH_IMAGE_VERSION=0.2.3-alpha.2-r1 docker compose build --pull
 ```
 
 Maintainers can run `make push` to build and publish the `linux/amd64` and `linux/arm64` manifests under the same immutable revision. The target refuses to overwrite an existing tag and does not create a `latest` tag.
@@ -510,15 +548,16 @@ See [SECURITY.md](SECURITY.md) before changing any network or privilege setting.
 Run at least these checks for every DSH upgrade:
 
 ```bash
-docker run --rm runzhliu/deepseek-harness:0.2.2-rc.5-r1 --version
+docker run --rm runzhliu/deepseek-harness:0.2.3-alpha.2-r1 --version
 
-docker run --rm --entrypoint dsh runzhliu/deepseek-harness:0.2.2-rc.5-r1 \
+docker run --rm --entrypoint dsh runzhliu/deepseek-harness:0.2.3-alpha.2-r1 \
   web --patch /opt/deepseek-harness/web.cordis.patch.yml --dump-config
 
 docker compose up -d
 test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3080/)" = 401
 make smoke
 make lan-smoke
+make multiuser-smoke
 docker compose ps
 docker compose logs --no-color deepseek-harness
 
@@ -526,7 +565,7 @@ helm lint --strict charts/deepseek-harness
 helm template deepseek-harness charts/deepseek-harness >/dev/null
 ```
 
-Acceptance criteria: the CLI reports the pinned version; the dumped `webserver.config.host` is `127.0.0.1`, with a TCP relay on one concrete container IP; the unauthenticated root returns `401`, while the launch token exchanges for a cookie and loads the page; Compose reaches `healthy`; logs contain no plugin/config errors; the container does not try to hand off to a host browser; and Helm renders both persistent and ephemeral-storage variants. Build both `linux/amd64` and `linux/arm64` and actually spawn a PTY before publishing because terminal and sandbox dependencies include native code. The default entry points are `make verify`, `make build`, and `make smoke`; the optional market uses `make market-build` and `make market-smoke`, which also prove that the market package is absent from the default image.
+Acceptance criteria: the CLI reports the pinned version; the dumped `webserver.config.host` is `127.0.0.1`, with a TCP relay on one concrete container IP; the unauthenticated root returns `401`, while the launch token exchanges for a cookie and loads the page; Compose reaches `healthy`; logs contain no plugin/config errors; the container does not try to hand off to a host browser; and Helm renders both persistent and ephemeral-storage variants. Build both `linux/amd64` and `linux/arm64` and actually spawn a PTY before publishing because terminal and sandbox dependencies include native code. The default entry points are `make verify`, `make build`, and `make smoke`; the optional market uses `make market-build` and `make market-smoke`, which also prove that the market package is absent from the default image. The trusted multi-user mode adds `make multiuser-check` and `make multiuser-smoke`.
 
 ## Troubleshooting
 
@@ -554,6 +593,16 @@ The last command must print `/workspace`. An `EACCES` under `/workspace` instead
 | `compose.bwrap.yaml` | Optional overlay that selects the bubblewrap image and permits its required namespace operations |
 | `compose.podman.yaml` | Rootless Podman `keep-id` and SELinux workspace overlay |
 | `compose.lan.yaml` | Optional LAN overlay for HTTPS, Basic Auth, trusted-host, and same-origin noVNC |
+| `compose.multiuser.yaml` | Trusted multi-user single-container deployment behind Traefik/Authelia |
+| `.env.multiuser.example` | Secret-free multi-user environment template |
+| `config/multiuser.example.json` | Per-user `name`/`authUser`/port/heap configuration example |
+| `config/web.multiuser.cordis.patch.yml` | Multiuser Cordis overlay for workspace and directory-picker policy |
+| `plugins/dsh-workspace-policy/` | `@codeorbita` host plugin restricting workspace registration and locking the default workspace |
+| `plugins/dsh-directory-picker-policy/` | `@codeorbita` host plugin rooting the directory picker at the user's tree |
+| `docs/multiuser.md` | Full multi-user architecture, Traefik/Authelia integration, security, ACL analysis, and operations |
+| `scripts/dsh-multiuser-supervisor.cjs` | Per-user DSH process supervisor and token capture |
+| `scripts/dsh-multiuser-gateway.cjs` | `Remote-User` routing, cookie rewrite, proxy-secret admission, and token broker |
+| `scripts/multiuser-smoke.sh` | Two-user same-URL, picker/workspace policy, cookie, and restart smoke test |
 | `config/Caddyfile.lan` | Caddy configuration for the protected LAN endpoint |
 | `.env.lan.example` | Secret-free LAN configuration template |
 | `web.market.cordis.patch.yml` | Profile configuration used only by the optional market derivative |

@@ -1,0 +1,11 @@
+# Minimal Authelia access-control snippet for the multiuser deployment.
+#
+# Merge this into the existing Authelia configuration; the forward-auth
+# middleware must return Remote-User and Remote-Groups. The DSH gateway also
+# enforces its own authUser/group allowlist.
+access_control:
+  default_policy: deny
+  rules:
+    - domain: chat.codeorbita.com
+      subject: "group:dsh-users"
+      policy: two_factor

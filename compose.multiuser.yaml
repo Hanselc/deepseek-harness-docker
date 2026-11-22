@@ -1,0 +1,131 @@
+# Trusted multi-user deployment behind an existing Traefik + Authelia stack.
+#
+# One container. One DSH process per configured user. The gateway maps the
+# Authelia Remote-User header to that user's process; no per-user container is
+# created and no DSH port is published.
+#
+# Usage:
+#   cp .env.multiuser.example .env.multiuser
+#   cp config/multiuser.example.json config/multiuser.json
+#   # edit both, then:
+#   docker compose --env-file .env.multiuser -f compose.multiuser.yaml up -d --no-build
+#
+# The container joins the external Traefik network. Traefik terminates TLS and
+# applies Authelia forward-auth; the gateway additionally requires the
+# X-DSH-Proxy-Secret header added by the Traefik headers middleware.
+
+name: ${COMPOSE_PROJECT_NAME:-dsh-multiuser}
+
+services:
+  dsh-multiuser:
+    image: ${DSH_IMAGE_REPOSITORY:-docker.io/runzhliu/deepseek-harness}:${DSH_IMAGE_VERSION:-0.2.3-alpha.2-r1}
+    entrypoint:
+      - /usr/bin/tini
+      - --
+      - /usr/local/bin/node
+      - /opt/deepseek-harness/dsh-multiuser-supervisor.cjs
+    command: []
+    environment:
+      DSH_MULTIUSER_CONFIG: /etc/dsh-multiuser/users.json
+      DSH_MULTIUSER_PUBLIC_SCHEME: ${DSH_MULTIUSER_PUBLIC_SCHEME:-https}
+      DSH_MULTIUSER_PUBLIC_HOST: ${DSH_MULTIUSER_PUBLIC_HOST:?set DSH_MULTIUSER_PUBLIC_HOST}
+      DSH_MULTIUSER_PUBLIC_PORT: ${DSH_MULTIUSER_PUBLIC_PORT:-}
+      DSH_MULTIUSER_PROXY_SECRET: ${DSH_MULTIUSER_PROXY_SECRET:?set DSH_MULTIUSER_PROXY_SECRET}
+      DSH_MULTIUSER_PROXY_HEADER: ${DSH_MULTIUSER_PROXY_HEADER:-X-DSH-Proxy-Secret}
+      DSH_MULTIUSER_AUTH_HEADER: ${DSH_MULTIUSER_AUTH_HEADER:-Remote-User}
+      DSH_MULTIUSER_GROUPS_HEADER: ${DSH_MULTIUSER_GROUPS_HEADER:-Remote-Groups}
+      DSH_MULTIUSER_LISTEN_PORT: "8080"
+      DSH_MULTIUSER_LISTEN_INTERFACE: ${DSH_MULTIUSER_LISTEN_INTERFACE:-}
+      DSH_MULTIUSER_LISTEN_ADDRESS: ${DSH_MULTIUSER_LISTEN_ADDRESS:-}
+      DSH_MULTIUSER_USERS_ROOT: /workspace
+      DSH_MULTIUSER_PLUGIN_ROOT: /opt/deepseek-harness/plugins
+      DSH_MULTIUSER_WEB_PATCH: /opt/deepseek-harness/web.cordis.patch.yml
+      DSH_MULTIUSER_PATCH: /opt/deepseek-harness/web.multiuser.cordis.patch.yml
+      DSH_MULTIUSER_WORKSPACE_POLICY: ${DSH_MULTIUSER_WORKSPACE_POLICY:-restricted}
+      DSH_MULTIUSER_WORKSPACE_PICKER: ${DSH_MULTIUSER_WORKSPACE_PICKER:-1}
+      DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_DEFAULT: ${DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_DEFAULT:-1}
+      DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_ORDER: ${DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_ORDER:-1}
+      DSH_MULTIUSER_HEAP_MB: ${DSH_MULTIUSER_HEAP_MB:-256}
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_DESKTOP_ENABLED: "0"
+      DSH_BROWSER_USE_ENABLED: "0"
+      HOME: /workspace
+    volumes:
+      - type: bind
+        source: ${DSH_MULTIUSER_CONFIG_HOST:-./config/multiuser.json}
+        target: /etc/dsh-multiuser/users.json
+        read_only: true
+      - type: bind
+        source: ./config/web.multiuser.cordis.patch.yml
+        target: /opt/deepseek-harness/web.multiuser.cordis.patch.yml
+        read_only: true
+      - type: bind
+        source: ./scripts/dsh-multiuser-supervisor.cjs
+        target: /opt/deepseek-harness/dsh-multiuser-supervisor.cjs
+        read_only: true
+      - type: bind
+        source: ./scripts/dsh-multiuser-gateway.cjs
+        target: /opt/deepseek-harness/dsh-multiuser-gateway.cjs
+        read_only: true
+      - type: bind
+        source: ./plugins/dsh-workspace-policy
+        target: /opt/deepseek-harness/plugins/dsh-workspace-policy
+        read_only: true
+      - type: bind
+        source: ./plugins/dsh-directory-picker-policy
+        target: /opt/deepseek-harness/plugins/dsh-directory-picker-policy
+        read_only: true
+      - type: volume
+        source: ${DSH_MULTIUSER_USERS_VOLUME:-dsh-multiuser-users}
+        target: /workspace
+    expose:
+      - "8080"
+    networks:
+      - traefik
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m
+    shm_size: "256m"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: ${DSH_MULTIUSER_PIDS_LIMIT:-1024}
+    mem_limit: ${DSH_MULTIUSER_MEMORY:-2g}
+    cpus: ${DSH_MULTIUSER_CPUS:-2}
+    stop_grace_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test:
+        - CMD
+        - /usr/local/bin/node
+        - -e
+        - "fetch('http://127.0.0.1:8081/healthz').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 3s
+      start_period: 60s
+      retries: 3
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-traefik}
+      traefik.http.routers.dsh-multiuser.rule: Host(`${DSH_MULTIUSER_PUBLIC_HOST:?set DSH_MULTIUSER_PUBLIC_HOST}`)
+      traefik.http.routers.dsh-multiuser.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.dsh-multiuser.tls.certresolver: ${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      traefik.http.routers.dsh-multiuser.middlewares: ${DSH_MULTIUSER_AUTHELIA_MIDDLEWARE:-authelia@docker},dsh-multiuser-secret@docker
+      # The gateway default is X-DSH-Proxy-Secret. If you change
+      # DSH_MULTIUSER_PROXY_HEADER, edit this label name to match.
+      traefik.http.middlewares.dsh-multiuser-secret.headers.customrequestheaders.X-DSH-Proxy-Secret: ${DSH_MULTIUSER_PROXY_SECRET:?set DSH_MULTIUSER_PROXY_SECRET}
+      traefik.http.services.dsh-multiuser.loadbalancer.server.port: "8080"
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  dsh-multiuser-users:

@@ -1,0 +1,26 @@
+# Multiuser overlay applied after the shipped web patch.
+#
+# One process owns one user's DSH_HOME. The workspace registry is replaced by
+# @codeorbita/dsh-workspace-policy so the default workspace stays writable
+# while arbitrary workspace registration and default rename/delete/reorder are
+# rejected. The directory picker is rooted at the user's tree by the companion
+# @codeorbita/dsh-directory-picker-policy plugin.
+
+- id: workspace
+  disabled: true
+
+- insert:
+    - id: workspace-policy
+      name: '@codeorbita/dsh-workspace-policy'
+
+- id: workspace-controller
+  config:
+    documentsDirectory: !!js process.env.DSH_WORKSPACE_DOCUMENTS_DIR
+
+- id: directory-picker
+  disabled: !!js process.env.DSH_MULTIUSER_WORKSPACE_PICKER === '0'
+
+- insert:
+    - id: directory-picker-policy
+      name: '@codeorbita/dsh-directory-picker-policy'
+      disabled: !!js process.env.DSH_MULTIUSER_WORKSPACE_PICKER === '0'
