@@ -113,6 +113,9 @@ if [[ "${config}" != *"host: 127.0.0.1"* && "${config}" != *"host: '127.0.0.1'"*
   echo "container Web patch must retain the upstream loopback listener" >&2
   exit 1
 fi
+docker run --rm --entrypoint node "${image}" /opt/deepseek-harness/provider-preset.cjs --validate /opt/deepseek-harness/providers.json >/dev/null
+docker run --rm --entrypoint node "${image}" /opt/deepseek-harness/provider-preset.cjs --validate /opt/deepseek-harness/providers.example.json >/dev/null
+
 if [[ "${config}" != *"name: '@deepseek-ai/dsh-browser-use'"* ]] \
     || [[ "${config}" != *"name: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp'"* ]] \
     || [[ "${config}" != *"mode: attach"* ]] \

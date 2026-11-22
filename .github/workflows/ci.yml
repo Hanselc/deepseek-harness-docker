@@ -51,6 +51,7 @@ jobs:
           build-args: |
             IMAGE_VERSION=0.2.3-alpha.2-r1
             IMAGE_REVISION=${{ github.sha }}
+            PROVIDERS_CONFIG=providers/empty.json
       - run: ./scripts/smoke.sh localhost/deepseek-harness:ci-${{ matrix.suffix }} 0.2.3-alpha.2 10.15.1
       - name: Reclaim build cache before the Podman import
         if: matrix.platform == 'linux/amd64'
@@ -92,6 +93,7 @@ jobs:
           build-args: |
             IMAGE_VERSION=0.2.3-alpha.2-r1
             IMAGE_REVISION=${{ github.sha }}
+            PROVIDERS_CONFIG=providers/empty.json
       - run: CADDY_IMAGE=caddy:2.11.4-alpine ./scripts/lan-smoke.sh deepseek-harness ci-lan
 
   ungoogled:
@@ -122,6 +124,7 @@ jobs:
           build-args: |
             IMAGE_VERSION=0.2.3-alpha.2-r1-ungoogled.1
             IMAGE_REVISION=${{ github.sha }}
+            PROVIDERS_CONFIG=providers/empty.json
             CHROMIUM_FLAVOR=ungoogled
             UNGOOGLED_CHROMIUM_VERSION=152.0.7977.82-1
             UNGOOGLED_CHROMIUM_AMD64_SHA256=2c6e464e030f87145e42553c5aa539f6e62163ce677d3eace3c51b4fcbd5e347
@@ -146,6 +149,7 @@ jobs:
           build-args: |
             IMAGE_VERSION=0.2.3-alpha.2-r1
             IMAGE_REVISION=${{ github.sha }}
+            PROVIDERS_CONFIG=providers/empty.json
       - run: ./scripts/multiuser-smoke.sh deepseek-harness:ci-multiuser 0.2.3-alpha.2
 
   optional-market:
@@ -164,7 +168,7 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
-      - run: docker build --build-arg IMAGE_VERSION=0.2.3-alpha.2-r1 --build-arg IMAGE_REVISION=${{ github.sha }} --tag deepseek-harness:ci-market-base-${{ matrix.suffix }} .
+      - run: docker build --build-arg IMAGE_VERSION=0.2.3-alpha.2-r1 --build-arg IMAGE_REVISION=${{ github.sha }} --build-arg PROVIDERS_CONFIG=providers/empty.json --tag deepseek-harness:ci-market-base-${{ matrix.suffix }} .
       - run: >-
           docker build
           --file Dockerfile.market

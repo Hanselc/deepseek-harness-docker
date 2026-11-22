@@ -38,6 +38,7 @@ docker run --detach --name "${container}" \
   --memory 2g \
   --cpus 2 \
   --volume "${project_dir}/config/multiuser.example.json:/etc/dsh-multiuser/users.json:ro" \
+  --volume "${project_dir}/providers/smoke.json:/tmp/providers-smoke.json:ro" \
   --volume "${volume}:/workspace" \
   --env DSH_MULTIUSER_CONFIG=/etc/dsh-multiuser/users.json \
   --env DSH_MULTIUSER_PUBLIC_SCHEME=http \
@@ -51,6 +52,7 @@ docker run --detach --name "${container}" \
   --env DSH_MULTIUSER_PLUGIN_ROOT=/opt/deepseek-harness/plugins \
   --env DSH_MULTIUSER_WEB_PATCH=/opt/deepseek-harness/web.cordis.patch.yml \
   --env DSH_MULTIUSER_PATCH=/opt/deepseek-harness/web.multiuser.cordis.patch.yml \
+  --env DSH_PROVIDERS_CONFIG=/tmp/providers-smoke.json \
   --env DSH_MULTIUSER_WORKSPACE_POLICY=restricted \
   --env DSH_MULTIUSER_WORKSPACE_PICKER=1 \
   --env DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_DEFAULT=1 \
@@ -132,6 +134,10 @@ for user in alice bob; do
   grep --quiet '__DSH_BOOT__' "${temporary_dir}/${user}.html" || { echo "${user} did not receive the DSH app shell" >&2; exit 1; }
   grep --quiet "dsh-${user}-auth-" "${jar}" || { echo "${user} did not receive a user-scoped DSH cookie" >&2; exit 1; }
 done
+
+echo "== provider preset =="
+docker exec "${container}" test -s /tmp/dsh-providers.cordis.patch.yml
+docker exec "${container}" grep --quiet 'smoke-gateway' /tmp/dsh-providers.cordis.patch.yml
 
 echo "== per-user directories and processes =="
 for user in alice bob; do

@@ -252,6 +252,10 @@ docker compose --env-file .env.lan -f compose.yaml -f compose.lan.yaml \
 
 同一个 `https://chat.codeorbita.com`、Traefik/Authelia、每用户独立进程与工作区的单容器多用户模式，完整说明见 [英文 README 的多用户章节](README.en.md#trusted-multi-user-deployment-one-container-behind-traefikauthelia) 和 [docs/multiuser.md](docs/multiuser.md)。默认工作区可编辑；`@codeorbita/dsh-workspace-policy` 限制任意工作区注册并锁定默认工作区的重命名/删除/排序，`@codeorbita/dsh-directory-picker-policy` 限制目录选择器。该模式仅适用于受信任用户，不提供 OS 级文件隔离。
 
+### 构建时预配置模型 Provider（英文说明）
+
+镜像可以在构建时注入通用 provider preset，使模型设置页和模型选择器在进入时已就绪；支持 OpenAI 兼容、Anthropic 和 Gemini 路由，Ollama Cloud 只是示例。使用 `PROVIDERS_CONFIG=providers/my-providers.json make build`，默认 `providers/empty.json` 保持现有行为。API key 不写入镜像，使用 `apiKeyEnv` 环境变量或 Models 页面配置。API key 可通过 `providers.env`（见 `providers.env.example`）注入，完整说明见 [docs/provider-presets.md](docs/provider-presets.md)。
+
 ### 浏览器桌面、官方 Browser Use 与人工接管
 
 镜像内置 Debian Chromium、中文字体、Xvfb/Openbox 桌面和 noVNC，并把官方 `@deepseek-ai/dsh-experimental-browser-use-playwright-mcp` 以 `mode: attach` 连接到 `http://127.0.0.1:9222`。模型自动化和用户看到的是同一个 Chromium：共享标签页、Cookie、登录态与持久化到 `/home/node/.dsh/chrome-profile` 的 Profile。
@@ -570,6 +574,11 @@ docker compose exec deepseek-harness node -e "console.log(require('node:os').hom
 | `scripts/dsh-multiuser-supervisor.cjs` | 每用户 DSH 进程监督与 token 捕获 |
 | `scripts/dsh-multiuser-gateway.cjs` | `Remote-User` 路由、Cookie 重写、代理密钥与 token broker |
 | `scripts/multiuser-smoke.sh` | 双用户同 URL、策略、Cookie 与重启 Smoke Test |
+| `providers/empty.json` | 默认构建时 provider preset（无额外 provider） |
+| `providers/example.json` | 通用 OpenAI/Anthropic/Gemini preset 示例（含 Ollama Cloud） |
+| `scripts/provider-preset.cjs` | 通用 preset 校验、模型发现与 Cordis patch 生成器 |
+| `providers.env.example` | Compose 使用的 provider API key 环境文件示例（真实文件被忽略） |
+| `docs/provider-presets.md` | Provider preset 结构、构建/运行时注入、发现与安全说明 |
 | `config/Caddyfile.lan` | 受保护局域网入口的 Caddy 配置 |
 | `.env.lan.example` | 不含 Secret 的 LAN 配置模板 |
 | `web.market.cordis.patch.yml` | 只由可选市场派生镜像使用的 profile 配置 |

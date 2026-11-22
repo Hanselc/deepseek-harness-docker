@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG NODE_IMAGE=docker.io/library/node:24.22.3-trixie
+ARG PROVIDERS_CONFIG=providers/empty.json
 FROM ${NODE_IMAGE} AS installer
 
 ARG DSH_VERSION=0.2.3-alpha.2
@@ -45,6 +46,8 @@ RUN mkdir -p /opt/dsh-browser-use \
     && npm cache clean --force
 
 FROM ${NODE_IMAGE}
+
+ARG PROVIDERS_CONFIG=providers/empty.json
 
 ARG NODE_IMAGE
 ARG DSH_VERSION=0.2.3-alpha.2
@@ -291,9 +294,12 @@ COPY scripts/chromium-docker /usr/local/bin/chromium-docker
 COPY scripts/dsh-container /usr/local/bin/dsh
 COPY scripts/deepseek-harness-entrypoint /usr/local/bin/deepseek-harness-entrypoint
 COPY scripts/dsh-web-relay.cjs /opt/deepseek-harness/dsh-web-relay.cjs
+COPY scripts/provider-preset.cjs /opt/deepseek-harness/provider-preset.cjs
 COPY scripts/dsh-multiuser-supervisor.cjs /opt/deepseek-harness/dsh-multiuser-supervisor.cjs
 COPY scripts/dsh-multiuser-gateway.cjs /opt/deepseek-harness/dsh-multiuser-gateway.cjs
 COPY config/web.multiuser.cordis.patch.yml /opt/deepseek-harness/web.multiuser.cordis.patch.yml
+COPY ${PROVIDERS_CONFIG} /opt/deepseek-harness/providers.json
+COPY providers/example.json /opt/deepseek-harness/providers.example.json
 COPY plugins/dsh-browser-desktop /opt/deepseek-harness/plugins/dsh-browser-desktop
 COPY plugins/dsh-workspace-policy /opt/deepseek-harness/plugins/dsh-workspace-policy
 COPY plugins/dsh-directory-picker-policy /opt/deepseek-harness/plugins/dsh-directory-picker-policy
@@ -316,11 +322,16 @@ RUN chmod 0755 /usr/local/bin/chromium-docker \
     && if [ ! -e /usr/share/novnc/index.html ]; then \
       ln -s vnc.html /usr/share/novnc/index.html; \
     fi \
+    && test -f /opt/deepseek-harness/provider-preset.cjs \
+    && test -f /opt/deepseek-harness/providers.json \
+    && test -f /opt/deepseek-harness/providers.example.json \
+    && node /opt/deepseek-harness/provider-preset.cjs --validate /opt/deepseek-harness/providers.json \
     && test -f /opt/deepseek-harness/dsh-multiuser-supervisor.cjs \
     && test -f /opt/deepseek-harness/dsh-multiuser-gateway.cjs \
     && test -f /opt/deepseek-harness/web.multiuser.cordis.patch.yml \
     && test -f /opt/deepseek-harness/plugins/dsh-workspace-policy/index.js \
     && test -f /opt/deepseek-harness/plugins/dsh-directory-picker-policy/index.js \
+    && node --check /opt/deepseek-harness/provider-preset.cjs \
     && node --check /opt/deepseek-harness/dsh-multiuser-supervisor.cjs \
     && node --check /opt/deepseek-harness/dsh-multiuser-gateway.cjs \
     && test "$(dsh --version)" = "${DSH_VERSION}" \

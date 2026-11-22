@@ -27,6 +27,9 @@ services:
       - /usr/local/bin/node
       - /opt/deepseek-harness/dsh-multiuser-supervisor.cjs
     command: []
+    env_file:
+      - path: ${DSH_PROVIDERS_ENV_FILE:-providers.env}
+        required: false
     environment:
       DSH_MULTIUSER_CONFIG: /etc/dsh-multiuser/users.json
       DSH_MULTIUSER_PUBLIC_SCHEME: ${DSH_MULTIUSER_PUBLIC_SCHEME:-https}
@@ -48,6 +51,7 @@ services:
       DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_DEFAULT: ${DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_DEFAULT:-1}
       DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_ORDER: ${DSH_MULTIUSER_WORKSPACE_POLICY_LOCK_ORDER:-1}
       DSH_MULTIUSER_HEAP_MB: ${DSH_MULTIUSER_HEAP_MB:-256}
+      DSH_PROVIDERS_CONFIG: ${DSH_PROVIDERS_CONFIG:-}
       DSH_TELEMETRY_DISABLED: "1"
       DSH_DESKTOP_ENABLED: "0"
       DSH_BROWSER_USE_ENABLED: "0"
