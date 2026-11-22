@@ -291,7 +291,12 @@ COPY scripts/chromium-docker /usr/local/bin/chromium-docker
 COPY scripts/dsh-container /usr/local/bin/dsh
 COPY scripts/deepseek-harness-entrypoint /usr/local/bin/deepseek-harness-entrypoint
 COPY scripts/dsh-web-relay.cjs /opt/deepseek-harness/dsh-web-relay.cjs
+COPY scripts/dsh-multiuser-supervisor.cjs /opt/deepseek-harness/dsh-multiuser-supervisor.cjs
+COPY scripts/dsh-multiuser-gateway.cjs /opt/deepseek-harness/dsh-multiuser-gateway.cjs
+COPY config/web.multiuser.cordis.patch.yml /opt/deepseek-harness/web.multiuser.cordis.patch.yml
 COPY plugins/dsh-browser-desktop /opt/deepseek-harness/plugins/dsh-browser-desktop
+COPY plugins/dsh-workspace-policy /opt/deepseek-harness/plugins/dsh-workspace-policy
+COPY plugins/dsh-directory-picker-policy /opt/deepseek-harness/plugins/dsh-directory-picker-policy
 
 RUN chmod 0755 /usr/local/bin/chromium-docker \
         /usr/local/bin/dsh \
@@ -311,6 +316,13 @@ RUN chmod 0755 /usr/local/bin/chromium-docker \
     && if [ ! -e /usr/share/novnc/index.html ]; then \
       ln -s vnc.html /usr/share/novnc/index.html; \
     fi \
+    && test -f /opt/deepseek-harness/dsh-multiuser-supervisor.cjs \
+    && test -f /opt/deepseek-harness/dsh-multiuser-gateway.cjs \
+    && test -f /opt/deepseek-harness/web.multiuser.cordis.patch.yml \
+    && test -f /opt/deepseek-harness/plugins/dsh-workspace-policy/index.js \
+    && test -f /opt/deepseek-harness/plugins/dsh-directory-picker-policy/index.js \
+    && node --check /opt/deepseek-harness/dsh-multiuser-supervisor.cjs \
+    && node --check /opt/deepseek-harness/dsh-multiuser-gateway.cjs \
     && test "$(dsh --version)" = "${DSH_VERSION}" \
     && test "$(pnpm --version)" = "${PNPM_VERSION}" \
     && test "$(node -p 'require("/usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-browser-use/package.json").version')" = "${DSH_VERSION}" \

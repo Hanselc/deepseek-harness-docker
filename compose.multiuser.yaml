@@ -12,7 +12,9 @@
 #
 # The container joins the external Traefik network. Traefik terminates TLS and
 # applies Authelia forward-auth; the gateway additionally requires the
-# X-DSH-Proxy-Secret header added by the Traefik headers middleware.
+# X-DSH-Proxy-Secret header added by the Traefik headers middleware. The
+# supervisor, gateway, Cordis patch and @codeorbita plugins are baked into the
+# image; only the per-deployment users file is mounted.
 
 name: ${COMPOSE_PROJECT_NAME:-dsh-multiuser}
 
@@ -54,26 +56,6 @@ services:
       - type: bind
         source: ${DSH_MULTIUSER_CONFIG_HOST:-./config/multiuser.json}
         target: /etc/dsh-multiuser/users.json
-        read_only: true
-      - type: bind
-        source: ./config/web.multiuser.cordis.patch.yml
-        target: /opt/deepseek-harness/web.multiuser.cordis.patch.yml
-        read_only: true
-      - type: bind
-        source: ./scripts/dsh-multiuser-supervisor.cjs
-        target: /opt/deepseek-harness/dsh-multiuser-supervisor.cjs
-        read_only: true
-      - type: bind
-        source: ./scripts/dsh-multiuser-gateway.cjs
-        target: /opt/deepseek-harness/dsh-multiuser-gateway.cjs
-        read_only: true
-      - type: bind
-        source: ./plugins/dsh-workspace-policy
-        target: /opt/deepseek-harness/plugins/dsh-workspace-policy
-        read_only: true
-      - type: bind
-        source: ./plugins/dsh-directory-picker-policy
-        target: /opt/deepseek-harness/plugins/dsh-directory-picker-policy
         read_only: true
       - type: volume
         source: ${DSH_MULTIUSER_USERS_VOLUME:-dsh-multiuser-users}
