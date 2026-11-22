@@ -270,7 +270,7 @@ make multiuser-logs
 make multiuser-smoke
 ```
 
-The deployment is defined in [`compose.multiuser.yaml`](compose.multiuser.yaml). It uses the pinned image from `.env.multiuser`; the multiuser scripts, Cordis patch, and plugins are mounted from this checkout. The container joins the external `TRAEFIK_NETWORK`, exposes port `8080` only to that network, and publishes no host ports. Traefik terminates TLS and applies Authelia forward-auth; `config/traefik.multiuser.example.yaml` and `config/authelia.multiuser.example.yml` show the required router, `authResponseHeaders`, access rule, and secret-header middleware. Change `DSH_MULTIUSER_PUBLIC_HOST` in `.env.multiuser`; use the same value in the Authelia access rule.
+The deployment is defined in [`compose.multiuser.yaml`](compose.multiuser.yaml). It uses the pinned image from `.env.multiuser`; the multiuser supervisor, gateway, Cordis patch, and `@codeorbita` plugins are baked into the image. The container joins the external `TRAEFIK_NETWORK`, exposes port `8080` only to that network, and publishes no host ports. Traefik terminates TLS and applies Authelia forward-auth; `config/traefik.multiuser.example.yaml` and `config/authelia.multiuser.example.yml` show the required router, `authResponseHeaders`, access rule, and secret-header middleware. Change `DSH_MULTIUSER_PUBLIC_HOST` in `.env.multiuser`; use the same value in the Authelia access rule.
 
 Workspace layout per user:
 

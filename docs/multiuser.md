@@ -63,8 +63,8 @@ The gateway:
 - An existing Authelia instance with forward-auth and a group or user list for
   the DSH users. The examples use a `dsh-users` group for `chat.codeorbita.com`.
 - DNS for the public host and a certificate for it.
-- The standard `runzhliu/deepseek-harness` image; the multiuser scripts and
-  plugins are mounted from this checkout.
+- The standard `runzhliu/deepseek-harness` image; the multiuser supervisor,
+  gateway, Cordis patch and `@codeorbita` plugins are included in the image.
 - A host or named volume mounted at `/workspace` and writable by UID 1000.
 
 ## Configuration files

@@ -32,6 +32,11 @@ require_literal Dockerfile '"@deepseek-ai/dsh-browser-use@${DSH_VERSION}"'
 require_literal Dockerfile '"@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@${DSH_VERSION}"'
 require_literal Dockerfile 'COPY scripts/dsh-container /usr/local/bin/dsh'
 require_literal Dockerfile 'COPY scripts/dsh-web-relay.cjs /opt/deepseek-harness/dsh-web-relay.cjs'
+require_literal Dockerfile 'COPY scripts/dsh-multiuser-supervisor.cjs /opt/deepseek-harness/dsh-multiuser-supervisor.cjs'
+require_literal Dockerfile 'COPY scripts/dsh-multiuser-gateway.cjs /opt/deepseek-harness/dsh-multiuser-gateway.cjs'
+require_literal Dockerfile 'COPY config/web.multiuser.cordis.patch.yml /opt/deepseek-harness/web.multiuser.cordis.patch.yml'
+require_literal Dockerfile 'COPY plugins/dsh-workspace-policy /opt/deepseek-harness/plugins/dsh-workspace-policy'
+require_literal Dockerfile 'COPY plugins/dsh-directory-picker-policy /opt/deepseek-harness/plugins/dsh-directory-picker-policy'
 require_literal web.cordis.patch.yml "host: '127.0.0.1'"
 require_literal web.market.cordis.patch.yml "host: '127.0.0.1'"
 require_literal Dockerfile "ARG NODE_IMAGE=docker.io/library/node:24.22.3-trixie"
