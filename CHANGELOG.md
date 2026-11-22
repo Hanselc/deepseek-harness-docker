@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## 0.1.34 - 2026-11-22
+
+- Upgrade the core runtime and matching Browser Use packages to DSH `0.2.3-alpha.2` with immutable image `0.2.3-alpha.2-r1` and Helm chart `0.1.34`.
+- Pin Node.js `24.22.3-trixie`; DSH `0.2.3-alpha.2` requires Node `24.22.3+` or `26.13.1+`.
+- Track the 0.2.3-alpha.1 breaking changes: Cordis 4.0.0-rc.12, Loader/Include updates, client plugin artifact changes, session-status changes, working-directory/worktree changes, Node PTC changes, Python PTC removal, DeepSeek auth changes, and session fork/storage updates.
+- Update the browser-desktop plugin to `0.1.7` for the 0.2.3 client-module runtime.
+- Package the optional market variant with `dshmarket@1.78.0`; the market smoke passes on the new runtime.
+- Hold the Super Agent variant at `0.2.2-rc.5-r1-superagent.1` until the upstream prototype supports DSH 0.2.3; do not rebuild it on the new base.
+- Add the trusted multi-user single-container mode: one DSH process per Authelia user, same public URL, Traefik proxy secret, per-user cookie rewrite, launch-token brokering, and per-user DSH homes/workspaces.
+- Add `@codeorbita/dsh-workspace-policy` and `@codeorbita/dsh-directory-picker-policy` to keep the default workspace editable, allow sub-workspaces, lock default rename/delete/reorder, and restrict the directory picker.
+- Add `compose.multiuser.yaml`, `.env.multiuser.example`, `config/multiuser.example.json`, Traefik/Authelia examples, `docs/multiuser.md`, the English README section, and a two-user multiuser smoke test.
+- README Light screenshots remain the 0.2.2-rc.5 captures until the new market image is published and the isolated capture workflow is rerun.
+
 ## 0.1.33 - 2026-11-19
 
 - Update all five container variants and the Helm chart to DSH `0.2.2-rc.5` with matching Browser Use packages.

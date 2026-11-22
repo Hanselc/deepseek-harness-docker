@@ -29,9 +29,9 @@ Read `README.md`, `SECURITY.md`, `compose.yaml`, and `.env.example` before chang
 
 ## Choose the smallest suitable mode
 
-Use default Compose for a local, single-user WebUI with the embedded Debian Chromium desktop. The image attaches official Playwright MCP Browser Use to the same persistent Chromium used for visible human takeover. Add `compose.lan.yaml` only for an explicit trusted-LAN request, after choosing one exact bind address, an internal DNS name or IP, a Caddy Basic Auth credential, and a firewall boundary. This mode uses `caddy:2.11.4-alpine` and still represents one shared trust domain, not multi-tenancy. Select the immutable `0.2.2-rc.5-r1-ungoogled.1` tag only when the user explicitly prioritizes minimized Google background egress and accepts its contributor-binary and reduced browser-service tradeoffs. Add `compose.market.yaml` only when the user explicitly wants the community plugin market. Use headless mode for one-shot automation and Helm only when the user requests Kubernetes.
+Use default Compose for a local, single-user WebUI with the embedded Debian Chromium desktop. The image attaches official Playwright MCP Browser Use to the same persistent Chromium used for visible human takeover. Add `compose.lan.yaml` only for an explicit trusted-LAN request, after choosing one exact bind address, an internal DNS name or IP, a Caddy Basic Auth credential, and a firewall boundary. This mode uses `caddy:2.11.4-alpine` and still represents one shared trust domain, not multi-tenancy. Select the immutable `0.2.3-alpha.2-r1-ungoogled.1` tag only when the user explicitly prioritizes minimized Google background egress and accepts its contributor-binary and reduced browser-service tradeoffs. Add `compose.market.yaml` only when the user explicitly wants the community plugin market. Use headless mode for one-shot automation and Helm only when the user requests Kubernetes.
 
-Use `compose.bwrap.yaml` and immutable image `0.2.2-rc.5-r1-bwrap.1` only when a Docker host cannot enforce Landlock and the user accepts `seccomp=unconfined` plus `systempaths=unconfined`. First distinguish a kernel with Landlock omitted from the active LSM list from a kernel built without Landlock; prefer enabling the existing LSM when possible. Never add `SYS_ADMIN`, `--privileged`, or the Docker socket. Require unprivileged user namespaces, run `make bwrap-smoke`, and confirm `/workspace` writes succeed while writes to the test's separate outer writable mount fail. Do not apply this overlay to rootless Podman or Kubernetes.
+Use `compose.bwrap.yaml` and immutable image `0.2.3-alpha.2-r1-bwrap.1` only when a Docker host cannot enforce Landlock and the user accepts `seccomp=unconfined` plus `systempaths=unconfined`. First distinguish a kernel with Landlock omitted from the active LSM list from a kernel built without Landlock; prefer enabling the existing LSM when possible. Never add `SYS_ADMIN`, `--privileged`, or the Docker socket. Require unprivileged user namespaces, run `make bwrap-smoke`, and confirm `/workspace` writes succeed while writes to the test's separate outer writable mount fail. Do not apply this overlay to rootless Podman or Kubernetes.
 
 For an explicitly rootless Podman deployment, require Podman 4.5 and `podman-compose 1.6.0` or newer, then add `compose.podman.yaml`. Confirm `podman info --format '{{.Host.Security.Rootless}}'` returns `true`. The overlay maps the caller to container UID/GID 1000 and privately labels the workspace on SELinux hosts; authorize one dedicated project directory and never broaden the mount to a shared home or filesystem root. Use `make podman-smoke` when validation is requested.
 
@@ -72,7 +72,7 @@ Follow the `.env.lan.example` and README procedure. Generate the bcrypt hash wit
 Keep Debian Chromium as the default. For an explicit privacy-focused deployment, select the separate immutable image before pulling and starting:
 
 ```bash
-export DSH_IMAGE_VERSION=0.2.2-rc.5-r1-ungoogled.1
+export DSH_IMAGE_VERSION=0.2.3-alpha.2-r1-ungoogled.1
 DSH_WORKSPACE=/absolute/path/to/project docker compose pull
 DSH_WORKSPACE=/absolute/path/to/project docker compose up -d --no-build
 ```
@@ -102,7 +102,7 @@ docker run --rm \
   --env DEEPSEEK_API_KEY \
   --mount type=volume,src=dsh-home,dst=/home/node/.dsh \
   --mount type=bind,src=/absolute/path/to/project,dst=/workspace \
-  runzhliu/deepseek-harness:0.2.2-rc.5-r1 \
+  runzhliu/deepseek-harness:0.2.3-alpha.2-r1 \
   --profile headless "summarize this repository"
 ```
 
@@ -123,12 +123,22 @@ kubectl -n deepseek-harness port-forward service/deepseek-harness 3080:3080 6080
 
 Use an existing Secret for provider credentials and an existing PVC when a persistent writable workspace is required. Preserve the chart's private Service and NetworkPolicy defaults.
 
+## Trusted multi-user mode
+
+For an explicit request to host several trusted Authelia users in one container, use `compose.multiuser.yaml` with `.env.multiuser.example` and `config/multiuser.example.json` as the templates. All users share one public URL; the container gateway maps Authelia `Remote-User` to one per-user DSH process. It requires the Traefik-added `X-DSH-Proxy-Secret`, returns 401/403/421/503 for missing identity/host/secret or a starting child, rewrites DSH cookies per user, and brokers each child's launch token. No DSH or noVNC port is published.
+
+The default workspace stays writable; `@codeorbita/dsh-workspace-policy` allows sub-workspaces under the default workspace or `/workspace/<user>/workspaces` and locks default rename/delete/reorder. `@codeorbita/dsh-directory-picker-policy` roots the picker at the user's tree and limits creation to the same roots. `DSH_MULTIUSER_WORKSPACE_PICKER=0` hides the Add-workspace UI. Desktop, Browser Use and noVNC are disabled.
+
+This is a trusted-user policy mode, not a multi-tenant security boundary: all processes share UID 1000 and can read each other's files if paths are known. Do not use POSIX ACLs as a substitute for distinct UIDs. Read `docs/multiuser.md`, keep the container on the Traefik network without host ports, and run `make multiuser-check` / `make multiuser-smoke` before deployment.
+
 ## Build or upgrade safely
 
+- DSH `0.2.3-alpha.2` requires Node.js 24.22.3 or newer (or 26.13.1+); the image pins `node:24.22.3-trixie`. Back up `dsh-home` before upgrading an existing instance.
 - Run `make verify` before building changes.
 - Run `make build` and `make smoke` for the default image.
 - Run `make ungoogled-build` and `make ungoogled-smoke` for the optional privacy-focused image.
 - Run `make market-build` and `make market-smoke` for the optional market image.
+- The Super Agent variant remains intentionally held at `0.2.2-rc.5-r1-superagent.1` until the upstream prototype supports DSH 0.2.3; do not rebuild it on the new base.
 - On version upgrades, update every pinned DSH/image reference together, inspect upstream release notes, and rerun the full verification. Do not publish an unverified tag or a drifting `latest` tag.
 - Confirm both `linux/amd64` and `linux/arm64` when publishing multi-platform images.
 

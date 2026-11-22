@@ -15,3 +15,7 @@ compose.local.yaml
 skills/
 test/.npm-cache/
 test/
+
+# Trusted multi-user deployment: private user list and environment.
+config/multiuser.json
+.env.multiuser

@@ -13,6 +13,8 @@ ungoogled_amd64_sha256="${9:?missing ungoogled-chromium amd64 sha256}"
 ungoogled_arm64_sha256="${10:?missing ungoogled-chromium arm64 sha256}"
 bwrap_image_version="${11:?missing bubblewrap image version}"
 caddy_version="${12:?missing Caddy version}"
+superagent_base_image_version="${13:?missing Super Agent base image version}"
+superagent_image_version="${14:?missing Super Agent image version}"
 
 require_literal() {
   local file="$1"
@@ -32,28 +34,34 @@ require_literal Dockerfile 'COPY scripts/dsh-container /usr/local/bin/dsh'
 require_literal Dockerfile 'COPY scripts/dsh-web-relay.cjs /opt/deepseek-harness/dsh-web-relay.cjs'
 require_literal web.cordis.patch.yml "host: '127.0.0.1'"
 require_literal web.market.cordis.patch.yml "host: '127.0.0.1'"
-require_literal Dockerfile "ARG NODE_IMAGE=docker.io/library/node:24-trixie"
+require_literal Dockerfile "ARG NODE_IMAGE=docker.io/library/node:24.22.3-trixie"
 require_literal Dockerfile "ARG UNGOOGLED_CHROMIUM_VERSION=${ungoogled_chromium_version}"
 require_literal Dockerfile "ARG UNGOOGLED_CHROMIUM_AMD64_SHA256=${ungoogled_amd64_sha256}"
 require_literal Dockerfile "ARG UNGOOGLED_CHROMIUM_ARM64_SHA256=${ungoogled_arm64_sha256}"
-require_literal Dockerfile.market "ARG NODE_IMAGE=docker.io/library/node:24-trixie"
+require_literal Dockerfile.market "ARG NODE_IMAGE=docker.io/library/node:24.22.3-trixie"
 require_literal Dockerfile.market "ARG BASE_IMAGE=docker.io/runzhliu/deepseek-harness:${image_version}"
 require_literal Dockerfile.market "ARG DSH_MARKET_VERSION=${market_version}"
 require_literal Dockerfile.market "ARG MARKET_IMAGE_VERSION=${market_image_version}"
-require_literal Dockerfile.superagent "ARG BASE_IMAGE=docker.io/runzhliu/deepseek-harness:${market_image_version}"
-require_literal Dockerfile.superagent "ARG SUPERAGENT_IMAGE_VERSION=${image_version}-superagent.1"
-require_literal compose.superagent.yaml "SUPERAGENT_IMAGE_VERSION:-${image_version}-superagent.1"
-require_literal .github/workflows/publish-superagent.yml "SUPERAGENT_IMAGE_VERSION: ${image_version}-superagent.1"
-require_literal .github/workflows/ci.yml './scripts/smoke.sh deepseek-harness:ci-superagent-'
-require_literal README.md "${image_version}-superagent.1"
-require_literal README.en.md "${image_version}-superagent.1"
+require_literal Dockerfile.superagent "ARG BASE_IMAGE=docker.io/runzhliu/deepseek-harness:${superagent_base_image_version}"
+require_literal Dockerfile.superagent "ARG SUPERAGENT_IMAGE_VERSION=${superagent_image_version}"
+require_literal compose.superagent.yaml "SUPERAGENT_IMAGE_VERSION:-${superagent_image_version}"
+require_literal compose.superagent.yaml "SUPERAGENT_BASE_IMAGE_VERSION:-${superagent_base_image_version}"
+require_literal .github/workflows/publish-superagent.yml "SUPERAGENT_IMAGE_VERSION: ${superagent_image_version}"
+require_literal README.md "runzhliu/deepseek-harness:${superagent_image_version}"
+require_literal README.en.md "runzhliu/deepseek-harness:${superagent_image_version}"
 require_literal Dockerfile.bwrap "ARG BASE_IMAGE=docker.io/runzhliu/deepseek-harness:${image_version}"
 require_literal Dockerfile.bwrap "ARG BWRAP_IMAGE_VERSION=${bwrap_image_version}"
 require_literal Dockerfile.bwrap 'apt-get install --yes --no-install-recommends bubblewrap'
 require_literal compose.yaml "DSH_IMAGE_VERSION:-${image_version}"
 require_literal compose.yaml 'DSH_IMAGE_REPOSITORY:-docker.io/runzhliu/deepseek-harness'
-require_literal compose.yaml 'NODE_IMAGE:-docker.io/library/node:24-trixie'
+require_literal compose.yaml 'NODE_IMAGE:-docker.io/library/node:24.22.3-trixie'
 require_literal compose.yaml 'DSH_BROWSER_USE_ENABLED: ${DSH_BROWSER_USE_ENABLED:-1}'
+require_literal compose.multiuser.yaml "DSH_IMAGE_VERSION:-${image_version}"
+require_literal .env.multiuser.example "DSH_IMAGE_VERSION=${image_version}"
+require_literal README.en.md 'compose.multiuser.yaml'
+require_literal README.en.md 'docs/multiuser.md'
+require_literal README.md 'docs/multiuser.md'
+require_literal SKILL.md 'compose.multiuser.yaml'
 require_literal compose.market.yaml "MARKET_IMAGE_VERSION:-${market_image_version}"
 require_literal compose.bwrap.yaml "BWRAP_IMAGE_VERSION:-${bwrap_image_version}"
 require_literal compose.bwrap.yaml 'seccomp=unconfined'
@@ -66,7 +74,7 @@ require_literal .env.example "DSH_VERSION=${dsh_version}"
 require_literal .env.example "DSH_IMAGE_VERSION=${image_version}"
 require_literal .env.example "PNPM_VERSION=${pnpm_version}"
 require_literal .env.example 'DSH_IMAGE_REPOSITORY=docker.io/runzhliu/deepseek-harness'
-require_literal .env.example 'NODE_IMAGE=docker.io/library/node:24-trixie'
+require_literal .env.example 'NODE_IMAGE=docker.io/library/node:24.22.3-trixie'
 require_literal .env.lan.example "CADDY_IMAGE=docker.io/library/caddy:${caddy_version}-alpine"
 require_literal .env.lan.example "DSH_IMAGE_VERSION=${image_version}"
 require_literal charts/deepseek-harness/Chart.yaml "appVersion: \"${dsh_version}\""
@@ -139,5 +147,5 @@ require_literal README.md 'compose.bwrap.yaml'
 require_literal README.en.md 'compose.bwrap.yaml'
 require_literal SKILL.md 'compose.bwrap.yaml'
 
-printf 'versions are consistent: image=%s dsh=%s pnpm=%s market=%s browser-plugin=%s ungoogled-chromium=%s bwrap=%s caddy=%s\n' \
-  "${image_version}" "${dsh_version}" "${pnpm_version}" "${market_version}" "${browser_plugin_version}" "${ungoogled_chromium_version}" "${bwrap_image_version}" "${caddy_version}"
+printf 'versions are consistent: image=%s dsh=%s pnpm=%s market=%s browser-plugin=%s ungoogled-chromium=%s bwrap=%s caddy=%s superagent-base=%s superagent-image=%s\n' \
+  "${image_version}" "${dsh_version}" "${pnpm_version}" "${market_version}" "${browser_plugin_version}" "${ungoogled_chromium_version}" "${bwrap_image_version}" "${caddy_version}" "${superagent_base_image_version}" "${superagent_image_version}"

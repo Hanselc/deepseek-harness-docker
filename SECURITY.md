@@ -22,6 +22,19 @@ The optional `market` image variant contains a third-party community catalog and
 
 From DSH `0.2.1-alpha.2`, the application itself binds container loopback. The entrypoint adds a raw TCP relay on one concrete container interface address, never a wildcard Web listener. It preserves authentication and Host/Origin headers and forwards WebSockets unchanged. Ambiguous address selection fails closed; use `DSH_WEB_RELAY_INTERFACE` only to select the intended container interface. Host networking is unsupported. This relay is not an authentication or TLS gateway and must not be published directly beyond host loopback.
 
+## Trusted multi-user mode
+
+The optional `compose.multiuser.yaml` mode runs one container with one DSH process per Authelia user. It is designed for trusted users, not multi-tenancy:
+
+- all children run as the same `node` UID in the same container; a user with shell/tool execution can read other users' files if they know the paths;
+- the `@codeorbita/dsh-workspace-policy` and `@codeorbita/dsh-directory-picker-policy` plugins enforce workspace-registration and picker policy in trusted code, not a kernel boundary;
+- the default workspace is writable by design; it is not a read-only template;
+- per-user POSIX ACLs do not separate users while the UID is shared; use per-user containers or distinct UIDs for real file isolation;
+- keep desktop/noVNC/Browser Use disabled, publish no host ports, and put the container behind Traefik + Authelia with the `X-DSH-Proxy-Secret` header and a per-user `Remote-User` allowlist;
+- back up the users volume and treat the host administrator as part of the trust boundary.
+
+See `docs/multiuser.md` for the full threat model and operations.
+
 ## Reporting
 
 Do not publish credentials, session content, private workspace paths, or exploitable deployment details in a public issue. Report vulnerabilities privately to the repository owner through GitHub Security Advisories. Report vulnerabilities in DeepSeek Harness itself through the upstream project's security channel.

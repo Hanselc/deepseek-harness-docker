@@ -1,0 +1,34 @@
+# Optional Traefik file-provider configuration for the multiuser deployment.
+#
+# Use this instead of the Compose labels when your Traefik does not read Docker
+# labels. Replace the host, Authelia address, secret and upstream service.
+http:
+  routers:
+    dsh-multiuser:
+      rule: "Host(`chat.codeorbita.com`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - authelia
+        - dsh-proxy-secret
+      service: dsh-multiuser
+  middlewares:
+    authelia:
+      forwardAuth:
+        address: "http://authelia:9091/api/verify?rd=https://auth.codeorbita.com/"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+    dsh-proxy-secret:
+      headers:
+        customRequestHeaders:
+          X-DSH-Proxy-Secret: "replace-with-the-same-32-plus-character-secret"
+  services:
+    dsh-multiuser:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://dsh-multiuser:8080"

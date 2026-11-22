@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-image="${1:-runzhliu/deepseek-harness:0.2.2-rc.5-r1}"
-expected_version="${2:-0.2.2-rc.5}"
+image="${1:-runzhliu/deepseek-harness:0.2.3-alpha.2-r1}"
+expected_version="${2:-0.2.3-alpha.2}"
 expected_pnpm_version="${3:-10.15.1}"
 expected_market_version="${4:-}"
 expected_chromium_flavor="${5:-debian}"
@@ -212,12 +212,53 @@ cleanup_web_auth() {
 }
 trap 'cleanup_web_auth; cleanup' EXIT INT TERM
 
+dsh_authed_state() {
+  docker exec --env DSH_SMOKE_TOKEN="${launch_token}" "${container}" node -e '
+    (async () => {
+      const base = "http://127.0.0.1:3080"
+      const exchange = await fetch(base + "/?token=" + encodeURIComponent(process.env.DSH_SMOKE_TOKEN), { redirect: "manual" })
+      const cookie = exchange.headers.getSetCookie().map(value => value.split(";")[0]).join("; ")
+      const response = await fetch(base + "/browser-desktop/state", { headers: { cookie } })
+      if (!response.ok) process.exit(1)
+      process.stdout.write(await response.text())
+    })().catch(() => process.exit(1))
+  '
+}
+
+dsh_web_ready() {
+  docker exec --env DSH_SMOKE_TOKEN="${launch_token}" "${container}" node -e '
+    (async () => {
+      const base = "http://127.0.0.1:3080"
+      const exchange = await fetch(base + "/?token=" + encodeURIComponent(process.env.DSH_SMOKE_TOKEN), { redirect: "manual" })
+      const cookie = exchange.headers.getSetCookie().map(value => value.split(";")[0]).join("; ")
+      const responses = await Promise.all([
+        fetch(base + "/browser-desktop/state", { headers: { cookie } }),
+        fetch("http://127.0.0.1:6080/vnc.html"),
+        fetch("http://127.0.0.1:9222/json/version")
+      ])
+      if (responses.some(response => !response.ok)) process.exit(1)
+    })().catch(() => process.exit(1))
+  '
+}
+
+dsh_authed_market_status() {
+  docker exec --env DSH_SMOKE_TOKEN="${launch_token}" "${container}" node -e '
+    (async () => {
+      const base = "http://127.0.0.1:3080"
+      const exchange = await fetch(base + "/?token=" + encodeURIComponent(process.env.DSH_SMOKE_TOKEN), { redirect: "manual" })
+      const cookie = exchange.headers.getSetCookie().map(value => value.split(";")[0]).join("; ")
+      const response = await fetch(base + "/dsh-market/status", { headers: { cookie } })
+      if (!response.ok) process.exit(1)
+      process.stdout.write(await response.text())
+    })().catch(() => process.exit(1))
+  '
+}
+
 market_is_ready() {
   if [[ -z "${expected_market_version}" ]]; then
     return 0
   fi
-  docker exec "${container}" node -e \
-    "fetch('http://127.0.0.1:3080/dsh-market/status').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+  dsh_authed_market_status >/dev/null
 }
 
 for attempt in $(seq 1 30); do
@@ -232,8 +273,7 @@ for attempt in $(seq 1 30); do
         --cookie-jar "${cookie_jar}" \
         --cookie "${cookie_jar}" \
         "http://127.0.0.1:${port}/?token=${launch_token}" >/dev/null \
-      && docker exec "${container}" node -e \
-        "Promise.all([fetch('http://127.0.0.1:6080/vnc.html'), fetch('http://127.0.0.1:9222/json/version'), fetch('http://127.0.0.1:3080/browser-desktop/state')]).then(rs => { if (rs.some(r => !r.ok)) process.exit(1) }).catch(() => process.exit(1))" \
+      && dsh_web_ready \
       && market_is_ready; then
     if ! curl --fail --silent --cookie "${cookie_jar}" "http://127.0.0.1:${port}/" \
       | grep --quiet '"id":"@runzhliu/dsh-browser-desktop"'; then
@@ -250,27 +290,38 @@ for attempt in $(seq 1 30); do
       echo "Web listener boundary check failed" >&2
       exit 1
     fi
-    if ! docker exec "${container}" node -e '
-      fetch("http://127.0.0.1:3080/browser-desktop/state")
-        .then(response => response.json())
-        .then(async state => {
-          const desktopPath = new URL(state.desktop.path, "http://127.0.0.1:6080")
-          if (state.desktop.port !== 6080 || !/^\/novnc-[^/]+\/vnc\.html$/.test(desktopPath.pathname)) process.exit(1)
-
-          const assetBase = desktopPath.pathname.slice(0, desktopPath.pathname.lastIndexOf("/"))
-          const [rfb, browser] = await Promise.all([
-            fetch(`http://127.0.0.1:6080${assetBase}/core/rfb.js`).then(response => {
-              if (!response.ok) throw new Error(`rfb.js returned HTTP ${response.status}`)
-              return response.text()
-            }),
-            fetch(`http://127.0.0.1:6080${assetBase}/core/util/browser.js`).then(response => {
-              if (!response.ok) throw new Error(`browser.js returned HTTP ${response.status}`)
-              return response.text()
-            })
-          ])
-          if (!rfb.includes("supportsWebCodecsH264Decode") || !browser.includes("export let supportsWebCodecsH264Decode")) process.exit(1)
+    state_json="$(dsh_authed_state)"
+    if [[ -z "${state_json}" ]]; then
+      echo "browser desktop state was unavailable" >&2
+      exit 1
+    fi
+    if ! node -e '
+      const state = JSON.parse(process.argv[1])
+      const desktopPath = new URL(state.desktop.path, "http://127.0.0.1:6080")
+      if (state.desktop.port !== 6080 || !/^\/novnc-[^/]+\/vnc\.html$/.test(desktopPath.pathname)) process.exit(1)
+    ' "${state_json}"; then
+      echo "browser desktop state did not expose the expected noVNC path" >&2
+      exit 1
+    fi
+    asset_path="$(node -e '
+      const state = JSON.parse(process.argv[1])
+      const desktopPath = new URL(state.desktop.path, "http://127.0.0.1:6080")
+      process.stdout.write(desktopPath.pathname.slice(0, desktopPath.pathname.lastIndexOf("/")))
+    ' "${state_json}")"
+    if ! docker exec --env DSH_NOVNC_ASSET_PATH="${asset_path}" "${container}" node -e '
+      const assetBase = process.env.DSH_NOVNC_ASSET_PATH
+      Promise.all([
+        fetch(`http://127.0.0.1:6080${assetBase}/core/rfb.js`).then(response => {
+          if (!response.ok) throw new Error(`rfb.js returned HTTP ${response.status}`)
+          return response.text()
+        }),
+        fetch(`http://127.0.0.1:6080${assetBase}/core/util/browser.js`).then(response => {
+          if (!response.ok) throw new Error(`browser.js returned HTTP ${response.status}`)
+          return response.text()
         })
-        .catch(() => process.exit(1))
+      ]).then(([rfb, browser]) => {
+        if (!rfb.includes("supportsWebCodecsH264Decode") || !browser.includes("export let supportsWebCodecsH264Decode")) process.exit(1)
+      }).catch(() => process.exit(1))
     '; then
       echo "browser desktop did not expose a consistent versioned noVNC module tree" >&2
       exit 1
@@ -281,14 +332,11 @@ for attempt in $(seq 1 30); do
         echo "Harness boot manifest did not include the plugin market client" >&2
         exit 1
       fi
-      if ! docker exec "${container}" node -e "
-        fetch('http://127.0.0.1:3080/dsh-market/status')
-          .then(response => response.json())
-          .then(status => {
-            if (status.version !== '${expected_market_version}' || status.restart !== false) process.exit(1)
-          })
-          .catch(() => process.exit(1))
-      "; then
+      market_status_json="$(dsh_authed_market_status)"
+      if ! node -e '
+        const status = JSON.parse(process.argv[1])
+        if (status.version !== process.argv[2] || status.restart !== false) process.exit(1)
+      ' "${market_status_json}" "${expected_market_version}"; then
         echo "plugin market status did not report the pinned version with self-restart disabled" >&2
         exit 1
       fi
@@ -341,17 +389,19 @@ for attempt in $(seq 1 30); do
         exit 1
       fi
     fi
-    if ! docker exec "${container}" node -e '
-      fetch("http://127.0.0.1:3080/browser-desktop/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: "http://127.0.0.1:3080" }),
-      })
-        .then(response => response.json())
-        .then(result => {
-          if (result.status !== "opened" || result.url !== "http://127.0.0.1:3080/") process.exit(1)
+    if ! docker exec --env DSH_SMOKE_TOKEN="${launch_token}" "${container}" node -e '
+      (async () => {
+        const base = "http://127.0.0.1:3080"
+        const exchange = await fetch(base + "/?token=" + encodeURIComponent(process.env.DSH_SMOKE_TOKEN), { redirect: "manual" })
+        const cookie = exchange.headers.getSetCookie().map(value => value.split(";")[0]).join("; ")
+        const response = await fetch(base + "/browser-desktop/open", {
+          method: "POST",
+          headers: { "content-type": "application/json", cookie },
+          body: JSON.stringify({ url: "http://127.0.0.1:3080" }),
         })
-        .catch(() => process.exit(1))
+        const result = await response.json()
+        if (result.status !== "opened" || result.url !== "http://127.0.0.1:3080/") process.exit(1)
+      })().catch(() => process.exit(1))
     '; then
       echo "browser_open transport did not open a Chromium tab" >&2
       exit 1

@@ -1,14 +1,17 @@
 IMAGE ?= docker.io/runzhliu/deepseek-harness
 GHCR_IMAGE ?= ghcr.io/runzhliu/deepseek-harness
-DSH_VERSION ?= 0.2.2-rc.5
+DSH_VERSION ?= 0.2.3-alpha.2
 IMAGE_VERSION ?= $(DSH_VERSION)-r1
-NODE_IMAGE ?= docker.io/library/node:24-trixie
+NODE_IMAGE ?= docker.io/library/node:24.22.3-trixie
 PNPM_VERSION ?= 10.15.1
-DSH_MARKET_VERSION ?= 1.66.9
+DSH_MARKET_VERSION ?= 1.78.0
 MARKET_IMAGE_VERSION ?= $(IMAGE_VERSION)-market.1
-SUPERAGENT_IMAGE_VERSION ?= $(IMAGE_VERSION)-superagent.1
+SUPERAGENT_IMAGE_VERSION ?= 0.2.2-rc.5-r1-superagent.1
+SUPERAGENT_BASE_IMAGE_VERSION ?= 0.2.2-rc.5-r1-market.1
 SUPERAGENT_REVISION ?= 6337fc823ce20251c8de8085948165c81aaa701e
-BROWSER_PLUGIN_VERSION ?= 0.1.6
+MULTIUSER_ENV_FILE ?= .env.multiuser
+MULTIUSER_CONFIG ?= config/multiuser.json
+BROWSER_PLUGIN_VERSION ?= 0.1.7
 BWRAP_IMAGE_VERSION ?= $(IMAGE_VERSION)-bwrap.1
 UNGOOGLED_CHROMIUM_VERSION ?= 152.0.7977.82-1
 UNGOOGLED_CHROMIUM_AMD64_SHA256 ?= 2c6e464e030f87145e42553c5aa539f6e62163ce677d3eace3c51b4fcbd5e347
@@ -21,12 +24,17 @@ PODMAN_COMPOSE ?= podman-compose
 LAN_ENV_FILE ?= .env.lan
 PLATFORMS ?= linux/amd64,linux/arm64
 
-.PHONY: help build multiarch-build push pull ghcr-pull bwrap-build bwrap-push bwrap-pull bwrap-smoke bwrap-inspect ungoogled-build ungoogled-multiarch-build ungoogled-push ungoogled-pull ungoogled-smoke ungoogled-inspect market-build market-push market-pull up down logs lan-up lan-down lan-logs lan-smoke podman-up podman-down podman-logs podman-smoke compose-check helm-check plugin-check dockerhub-check version-check verify upstream-check smoke market-smoke inspect ghcr-inspect market-inspect
+.PHONY: help build multiarch-build push pull ghcr-pull bwrap-build bwrap-push bwrap-pull bwrap-smoke bwrap-inspect ungoogled-build ungoogled-multiarch-build ungoogled-push ungoogled-pull ungoogled-smoke ungoogled-inspect market-build market-push market-pull up down logs multiuser-check multiuser-up multiuser-down multiuser-logs multiuser-smoke lan-up lan-down lan-logs lan-smoke podman-up podman-down podman-logs podman-smoke compose-check helm-check plugin-check dockerhub-check version-check verify upstream-check smoke market-smoke inspect ghcr-inspect market-inspect
 
 help:
 	@echo "superagent-build Build the optional Super Agent prototype image (includes market)"
 	@echo "superagent-smoke Verify setup defaults, authentication and persistence"
 	@echo "superagent-up    Start its dedicated Compose project and volumes"
+	@echo "multiuser-check  Validate the multiuser scripts, plugins, config and Compose file"
+	@echo "multiuser-up     Start the trusted multi-user container behind Traefik/Authelia"
+	@echo "multiuser-down   Stop it without deleting the users volume"
+	@echo "multiuser-logs   Follow its logs"
+	@echo "multiuser-smoke  Run the two-user container smoke test"
 	@echo "build            Build the local platform image"
 	@echo "multiarch-build  Build both release platforms without pushing"
 	@echo "push             Build and push the versioned multi-platform image (or dispatch publish-dockerhub.yml)"
@@ -104,7 +112,7 @@ market-pull:
 
 .PHONY: superagent-build superagent-smoke superagent-pull superagent-up superagent-down
 superagent-build:
-	docker build --file Dockerfile.superagent --build-arg BASE_IMAGE=$(IMAGE):$(MARKET_IMAGE_VERSION) --build-arg SUPERAGENT_IMAGE_VERSION=$(SUPERAGENT_IMAGE_VERSION) --build-arg SUPERAGENT_REVISION=$(SUPERAGENT_REVISION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --tag $(IMAGE):$(SUPERAGENT_IMAGE_VERSION) .
+	docker build --file Dockerfile.superagent --build-arg BASE_IMAGE=$(IMAGE):$(SUPERAGENT_BASE_IMAGE_VERSION) --build-arg SUPERAGENT_IMAGE_VERSION=$(SUPERAGENT_IMAGE_VERSION) --build-arg SUPERAGENT_REVISION=$(SUPERAGENT_REVISION) --build-arg IMAGE_REVISION=$$(git describe --always --dirty) --tag $(IMAGE):$(SUPERAGENT_IMAGE_VERSION) .
 
 superagent-smoke:
 	node scripts/superagent-smoke.cjs $(IMAGE):$(SUPERAGENT_IMAGE_VERSION)
@@ -126,6 +134,29 @@ down:
 
 logs:
 	docker compose logs --follow deepseek-harness
+
+multiuser-check:
+	node --check scripts/dsh-multiuser-supervisor.cjs
+	node --check scripts/dsh-multiuser-gateway.cjs
+	bash -n scripts/multiuser-smoke.sh
+	node --test scripts/dsh-multiuser.test.cjs plugins/dsh-workspace-policy/policy.test.js plugins/dsh-directory-picker-policy/policy.test.js
+	npm --cache "$${TMPDIR:-/tmp}/dsh-multiuser-plugin-npm-cache" pack --dry-run --json ./plugins/dsh-workspace-policy >/dev/null
+	npm --cache "$${TMPDIR:-/tmp}/dsh-multiuser-plugin-npm-cache" pack --dry-run --json ./plugins/dsh-directory-picker-policy >/dev/null
+	DSH_MULTIUSER_CONFIG_HOST=./config/multiuser.example.json docker compose --env-file .env.multiuser.example -f compose.multiuser.yaml config --quiet
+
+multiuser-up:
+	@test -f "$(MULTIUSER_ENV_FILE)" || { echo "missing $(MULTIUSER_ENV_FILE); copy .env.multiuser.example and edit it" >&2; exit 1; }
+	@config="$$(sed -n 's/^DSH_MULTIUSER_CONFIG_HOST=//p' "$(MULTIUSER_ENV_FILE)" | tail -1 | sed 's/^"//; s/"$$//')"; config="$${config:-$(MULTIUSER_CONFIG)}"; test -f "$$config" || { echo "missing $$config; copy config/multiuser.example.json and edit it" >&2; exit 1; }
+	docker compose --env-file "$(MULTIUSER_ENV_FILE)" -f compose.multiuser.yaml up -d --no-build
+
+multiuser-down:
+	docker compose --env-file "$(MULTIUSER_ENV_FILE)" -f compose.multiuser.yaml down
+
+multiuser-logs:
+	docker compose --env-file "$(MULTIUSER_ENV_FILE)" -f compose.multiuser.yaml logs --follow dsh-multiuser
+
+multiuser-smoke:
+	./scripts/multiuser-smoke.sh $(IMAGE):$(IMAGE_VERSION) $(DSH_VERSION)
 
 lan-up:
 	docker compose --env-file $(LAN_ENV_FILE) -f compose.yaml -f compose.lan.yaml pull
@@ -179,14 +210,14 @@ dockerhub-check:
 	bash scripts/render-dockerhub-readme.sh README.md /dev/null
 
 version-check:
-	./scripts/check-version-consistency.sh $(DSH_VERSION) $(IMAGE_VERSION) $(PNPM_VERSION) $(DSH_MARKET_VERSION) $(MARKET_IMAGE_VERSION) $(BROWSER_PLUGIN_VERSION) $(UNGOOGLED_CHROMIUM_VERSION) $(UNGOOGLED_IMAGE_VERSION) $(UNGOOGLED_CHROMIUM_AMD64_SHA256) $(UNGOOGLED_CHROMIUM_ARM64_SHA256) $(BWRAP_IMAGE_VERSION) $(CADDY_VERSION)
+	./scripts/check-version-consistency.sh $(DSH_VERSION) $(IMAGE_VERSION) $(PNPM_VERSION) $(DSH_MARKET_VERSION) $(MARKET_IMAGE_VERSION) $(BROWSER_PLUGIN_VERSION) $(UNGOOGLED_CHROMIUM_VERSION) $(UNGOOGLED_IMAGE_VERSION) $(UNGOOGLED_CHROMIUM_AMD64_SHA256) $(UNGOOGLED_CHROMIUM_ARM64_SHA256) $(BWRAP_IMAGE_VERSION) $(CADDY_VERSION) $(SUPERAGENT_BASE_IMAGE_VERSION) $(SUPERAGENT_IMAGE_VERSION)
 
 .PHONY: ui-check
 
 ui-check:
 	node --check scripts/capture-readme.cjs
 
-verify: compose-check helm-check plugin-check dockerhub-check version-check ui-check
+verify: compose-check multiuser-check helm-check plugin-check dockerhub-check version-check ui-check
 
 upstream-check:
 	./scripts/check-upstream-dsh.sh $(DSH_VERSION)
